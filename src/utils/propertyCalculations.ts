@@ -35,10 +35,6 @@ export const calculateProperty = (
   const stabilizedOcc = overrides.stabilizedOccupancy || assumptions.stabilizedOccupancy;
   const exitCapRate = overrides.capRate || assumptions.capRate;
   
-  // Expense Ratios (Input as %, converted to decimal for math if needed)
-  const t12ExpenseRatio = overrides.t12ExpenseRatio !== undefined ? overrides.t12ExpenseRatio : assumptions.t12ExpenseRatio;
-  const proFormaExpenseRatio = overrides.opexPerRoom !== undefined ? overrides.opexPerRoom : assumptions.expenseRatio;
-  
   // Expense Detail Overrides
   const proFormaExpenseOverrides = overrides.expenses || {};
   const t12ExpenseOverrides = overrides.t12Expenses || {};
@@ -119,18 +115,18 @@ export const calculateProperty = (
       : actualCurrentGRI;
 
   // Calculate T12 OpEx
-  // Hierarchy: 1. Specific Property Override -> 2. Global Deal Default -> 3. Zero (fallback to ratio if needed)
   let currentOpex = 0;
   let currentExpenseDetail: ExpenseDetail = { ...ZERO_EXPENSES };
 
-  // Populate from global defaults first (scaled by room count only, as global is Annual Per Unit)
   const keys = Object.keys(ZERO_EXPENSES) as (keyof ExpenseDetail)[];
+  
+  // 1. Apply Global Defaults (Per Unit * Rooms)
   keys.forEach(key => {
       const globalPerRoom = globalT12PerRoom[key] || 0;
       currentExpenseDetail[key] = globalPerRoom * property.rooms; 
   });
 
-  // Apply specific property overrides if they exist
+  // 2. Apply Specific Property Overrides
   if (Object.values(t12ExpenseOverrides).some(v => v !== undefined)) {
       keys.forEach(key => {
           if (t12ExpenseOverrides[key] !== undefined) {
@@ -139,17 +135,8 @@ export const calculateProperty = (
       });
   }
 
-  // If we have substantial line items, sum them. Otherwise fallback to ratio.
-  const sumT12Items = Object.values(currentExpenseDetail).reduce((sum, val) => sum + val, 0);
-  
-  if (sumT12Items > 0) {
-      currentOpex = sumT12Items;
-  } else {
-      // Fallback to Ratio
-      currentOpex = currentGRI * (t12ExpenseRatio / 100);
-      currentExpenseDetail.generalAdmin = currentOpex; // Dump into G/A for display
-  }
-
+  // 3. Sum it up
+  currentOpex = Object.values(currentExpenseDetail).reduce((sum, val) => sum + val, 0);
   const currentNOI = currentGRI - currentOpex;
   
   // --- Stabilized Financials (Pro Forma) ---
@@ -160,13 +147,13 @@ export const calculateProperty = (
   let stabilizedOpex = 0;
   let stabilizedExpenseDetail: ExpenseDetail = { ...ZERO_EXPENSES };
 
-  // Populate from global pro forma defaults first (Annual Per Unit)
+  // 1. Apply Global Defaults (Per Unit * Rooms)
   keys.forEach(key => {
       const globalPerRoom = globalProFormaPerRoom[key] || 0;
       stabilizedExpenseDetail[key] = globalPerRoom * property.rooms;
   });
 
-  // Apply specific property overrides
+  // 2. Apply Specific Property Overrides
   if (Object.values(proFormaExpenseOverrides).some(v => v !== undefined)) {
       keys.forEach(key => {
           if (proFormaExpenseOverrides[key] !== undefined) {
@@ -175,16 +162,8 @@ export const calculateProperty = (
       });
   }
 
-  const sumProFormaItems = Object.values(stabilizedExpenseDetail).reduce((sum, val) => sum + val, 0);
-
-  if (sumProFormaItems > 0) {
-      stabilizedOpex = sumProFormaItems;
-  } else {
-      // Fallback to Ratio
-      stabilizedOpex = stabilizedGRI * (proFormaExpenseRatio / 100);
-      stabilizedExpenseDetail.generalAdmin = stabilizedOpex; 
-  }
-
+  // 3. Sum it up
+  stabilizedOpex = Object.values(stabilizedExpenseDetail).reduce((sum, val) => sum + val, 0);
   const stabilizedNOI = stabilizedGRI - stabilizedOpex;
   
   // --- Valuation ---
@@ -203,6 +182,6 @@ export const calculateProperty = (
     units,
     currentExpenseDetail,
     stabilizedExpenseDetail,
-    expenseDetail: stabilizedExpenseDetail // Legacy support
+    expenseDetail: stabilizedExpenseDetail // Legacy alias
   };
 };

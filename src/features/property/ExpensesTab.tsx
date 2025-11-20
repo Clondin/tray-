@@ -2,16 +2,29 @@
 import React from 'react';
 import { useAppStore } from '../../store/appStore';
 import type { CalculatedProperty, ExpenseDetail } from '../../types';
-import { fmt, fmtPct } from '../../utils/formatters';
 import { DataTable, DataTableHeader, DataTableHeaderCell, DataTableBody, DataTableRow, DataTableCell } from '../../components/common/DataTable';
-import { TrendingUp } from '../../components/icons';
+import { fmt } from '../../utils/formatters';
+
+const ExpenseInput: React.FC<{ value: number, onChange: (val: number) => void, highlight?: boolean }> = ({ value, onChange, highlight }) => (
+    <div className="relative">
+        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted">$</span>
+        <input 
+            type="number" 
+            value={value || 0} 
+            onChange={e => onChange(parseFloat(e.target.value) || 0)}
+            className={`
+                w-full pl-5 pr-2 py-1 text-sm text-right bg-transparent border-b border-transparent
+                focus:border-accent focus:outline-none focus:bg-white/50 rounded-sm transition-all
+                ${highlight ? 'font-bold text-accent' : 'text-primary'}
+            `}
+        />
+    </div>
+);
 
 export const ExpensesTab: React.FC<{ property: CalculatedProperty }> = ({ property }) => {
-    const { setExpenseOverride, setT12ExpenseOverride, assumptions, setAssumptions } = useAppStore(state => ({
-        setExpenseOverride: state.setExpenseOverride,
+    const { setT12ExpenseOverride, setExpenseOverride } = useAppStore(state => ({
         setT12ExpenseOverride: state.setT12ExpenseOverride,
-        assumptions: state.assumptions,
-        setAssumptions: state.setAssumptions,
+        setExpenseOverride: state.setExpenseOverride
     }));
 
     const expenseFields: (keyof ExpenseDetail)[] = [
@@ -31,27 +44,7 @@ export const ExpensesTab: React.FC<{ property: CalculatedProperty }> = ({ proper
              <div className="flex justify-between items-center p-4 bg-surface-subtle rounded-xl border border-border">
                 <div>
                     <h3 className="text-lg font-bold text-primary">Operating Expenses</h3>
-                    <p className="text-sm text-secondary">Compare historical T12 actuals against stabilized Pro Forma targets.</p>
-                </div>
-                
-                {/* Growth Rate Control */}
-                <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-border shadow-sm">
-                    <div className="p-1.5 bg-accent-light text-accent rounded-md">
-                        <TrendingUp className="w-4 h-4" />
-                    </div>
-                    <div>
-                        <div className="text-[10px] font-bold text-secondary uppercase tracking-wider">Annual OpEx Growth</div>
-                        <div className="flex items-center gap-1">
-                            <input 
-                                type="number" 
-                                value={assumptions.opexGrowth}
-                                onChange={(e) => setAssumptions({ opexGrowth: parseFloat(e.target.value) || 0 })}
-                                step={0.25}
-                                className="w-12 text-right font-bold text-primary bg-transparent border-none p-0 focus:ring-0 text-sm"
-                            />
-                            <span className="text-sm font-medium text-muted">%</span>
-                        </div>
-                    </div>
+                    <p className="text-sm text-secondary">Detailed expense inputs per property. Defaults derived from global assumptions.</p>
                 </div>
              </div>
 
@@ -61,41 +54,32 @@ export const ExpensesTab: React.FC<{ property: CalculatedProperty }> = ({ proper
                         <DataTableHeaderCell>Expense Item</DataTableHeaderCell>
                         <DataTableHeaderCell align="right">T12 Actuals (Annual)</DataTableHeaderCell>
                         <DataTableHeaderCell align="right">Pro Forma (Annual)</DataTableHeaderCell>
-                        <DataTableHeaderCell align="right">Delta</DataTableHeaderCell>
+                        <DataTableHeaderCell align="right">Per Unit (PF)</DataTableHeaderCell>
                     </DataTableHeader>
                     <DataTableBody>
                         {expenseFields.map(key => {
-                            const t12Val = property.currentExpenseDetail[key] || 0;
-                            const proFormaVal = property.stabilizedExpenseDetail[key] || 0;
-                            const delta = proFormaVal - t12Val;
-                            
+                            const t12Val = property.currentExpenseDetail[key];
+                            const pfVal = property.stabilizedExpenseDetail[key];
                             return (
                                 <DataTableRow key={key}>
                                     <DataTableCell className="font-medium text-secondary">
                                         {labels[key]}
                                     </DataTableCell>
-                                    <DataTableCell align="right">
-                                         <input 
-                                            type="number" 
-                                            value={property.currentExpenseDetail[key] || ''} 
-                                            onChange={(e) => setT12ExpenseOverride(property.id, key, parseFloat(e.target.value) || 0)}
-                                            placeholder="-"
-                                            className="w-32 text-right p-1.5 text-sm bg-surface-subtle border border-border rounded focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                                    <DataTableCell align="right" className="w-40">
+                                         <ExpenseInput 
+                                            value={t12Val} 
+                                            onChange={(val) => setT12ExpenseOverride(property.id, key, val)} 
                                         />
                                     </DataTableCell>
-                                    <DataTableCell align="right">
-                                        <input 
-                                            type="number" 
-                                            value={property.stabilizedExpenseDetail[key] || ''} 
-                                            onChange={(e) => setExpenseOverride(property.id, key, parseFloat(e.target.value) || 0)}
-                                            placeholder="-"
-                                            className="w-32 text-right p-1.5 text-sm bg-white border border-border rounded focus:border-accent focus:ring-1 focus:ring-accent outline-none font-medium text-primary"
+                                    <DataTableCell align="right" className="w-40 bg-surface-subtle/30">
+                                        <ExpenseInput 
+                                            value={pfVal} 
+                                            onChange={(val) => setExpenseOverride(property.id, key, val)} 
+                                            highlight
                                         />
                                     </DataTableCell>
-                                    <DataTableCell align="right">
-                                        <span className={`text-xs font-medium ${delta > 0 ? 'text-warning' : delta < 0 ? 'text-success' : 'text-muted'}`}>
-                                            {delta === 0 ? '-' : fmt(delta)}
-                                        </span>
+                                    <DataTableCell align="right" className="w-32 text-xs text-muted">
+                                        {fmt(pfVal / property.rooms)}
                                     </DataTableCell>
                                 </DataTableRow>
                             );
@@ -104,11 +88,7 @@ export const ExpensesTab: React.FC<{ property: CalculatedProperty }> = ({ proper
                             <DataTableCell className="text-primary">Total Operating Expenses</DataTableCell>
                             <DataTableCell align="right" className="text-primary">{fmt(property.current.opex)}</DataTableCell>
                             <DataTableCell align="right" className="text-accent">{fmt(property.stabilized.opex)}</DataTableCell>
-                            <DataTableCell align="right">
-                                <span className="text-xs font-medium text-muted">
-                                    {fmtPct(((property.stabilized.opex - property.current.opex) / (property.current.opex || 1)) * 100)}
-                                </span>
-                            </DataTableCell>
+                            <DataTableCell align="right" className="text-muted">{fmt(property.stabilized.opex / property.rooms)}</DataTableCell>
                         </DataTableRow>
                     </DataTableBody>
                 </DataTable>

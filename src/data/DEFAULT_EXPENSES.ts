@@ -1,20 +1,20 @@
 
 import type { ExpenseDetail } from '../types';
 
-// Default T12 Expenses per Unit (Monthly or Annually based on usage, here treated as Annual Per Unit for the logic)
+// Default T12 Expenses per Unit (Annual)
 export const DEFAULT_T12_PER_UNIT: ExpenseDetail = {
-    taxes: 116,
-    insurance: 152,
-    exterminator: 17,
-    electric: 49,
-    waterSewer: 69,
-    gas: 76,
-    internet: 9,
-    generalAdmin: 5,
-    payroll: 100,
-    repairsMaint: 34,
+    taxes: 0,
+    insurance: 0,
+    exterminator: 0,
+    electric: 0,
+    waterSewer: 0,
+    gas: 0,
+    internet: 0,
+    generalAdmin: 2250, // Default $2250/unit as requested
+    payroll: 0,
+    repairsMaint: 0,
     pestControl: 0,
-    wasteManagement: 30,
+    wasteManagement: 0,
     management: 0,
     other: 0
 };

@@ -1,6 +1,6 @@
 
-export type View = 'overview' | 'portfolio' | 'expenses' | 'financing' | 'audit' | 'returns';
-export type PropertyTab = 'overview' | 'rentroll' | 'expenses';
+export type View = 'overview' | 'portfolio' | 'expenses' | 'financing' | 'audit' | 'returns' | 'memo';
+export type PropertyTab = 'overview' | 'rentroll' | 'expenses' | 'notes';
 
 export interface PropertyData {
   id: number;
@@ -60,6 +60,7 @@ export interface CalculatedProperty extends PropertyData {
   currentExpenseDetail: ExpenseDetail; // T12 Details
   stabilizedExpenseDetail: ExpenseDetail; // Pro Forma Details
   expenseDetail: ExpenseDetail; // Legacy alias for stabilizedExpenseDetail
+  notes?: string;
 }
 
 export interface Portfolio {
@@ -100,6 +101,7 @@ export interface PropertyOverrides {
     units?: { [unitId: string]: UnitOverride };
     expenses?: Partial<ExpenseDetail>; // Pro Forma Expense Override
     t12Expenses?: Partial<ExpenseDetail>; // T12 Expense Override
+    notes?: string;
   };
 }
 
@@ -145,6 +147,13 @@ export interface SavedFinancingScenario {
     portfolioName: string;
 }
 
+export interface DealMemo {
+    thesis: string;
+    strengths: string[];
+    risks: { id: string; risk: string; mitigant: string }[];
+    notes: string;
+}
+
 export interface DealSnapshot {
   id: string;
   name: string;
@@ -158,6 +167,7 @@ export interface DealSnapshot {
   globalProFormaPerRoom: Partial<ExpenseDetail>;
   portfolios: Portfolio[];
   selectedPortfolioId: string;
+  dealMemo: DealMemo;
 }
 
 export interface CommercialLoanParams {

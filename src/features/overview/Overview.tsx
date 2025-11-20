@@ -4,7 +4,7 @@ import { useAppStore } from '../../store/appStore';
 import { KpiCard, KpiValue } from '../../components/common/KpiCard';
 import { SectionCard } from '../../components/common/SectionCard';
 import { fmt, fmtPct } from '../../utils/formatters';
-import { Building2, DollarSign, Target, TrendingUp, PieChart, FileText, SlidersHorizontal, Check, Layers } from '../../components/icons';
+import { Building2, DollarSign, Target, TrendingUp, PieChart, FileText, SlidersHorizontal, Check, Layers, X } from '../../components/icons';
 import type { DashboardKPI } from '../../types';
 import { runDebtSizingEngine } from '../../utils/loanCalculations';
 import { calculateInvestorReturns } from '../../utils/investorReturnsCalculations';
@@ -70,6 +70,97 @@ const DashboardConfigModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
     );
 };
 
+// Global Assumptions Modal
+const GlobalAssumptionsModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+    const { assumptions, setAssumptions } = useAppStore(state => ({
+        assumptions: state.assumptions,
+        setAssumptions: state.setAssumptions
+    }));
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center px-4 py-6">
+             <div className="absolute inset-0 bg-primary/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+             <div className="relative bg-white w-full max-w-lg rounded-xl shadow-2xl border border-border overflow-hidden animate-fade-in">
+                <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-surface-subtle">
+                    <h3 className="text-lg font-bold text-primary">Global Assumptions</h3>
+                    <button onClick={onClose} className="text-secondary hover:text-primary"><X className="w-5 h-5" /></button>
+                </div>
+                
+                <div className="p-6 space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-xs font-bold text-secondary uppercase mb-1.5">Market Rent (Base)</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">$</span>
+                                <input 
+                                    type="number" 
+                                    value={assumptions.marketRent}
+                                    onChange={e => setAssumptions({ marketRent: parseFloat(e.target.value) || 0})}
+                                    className="form-input pl-6"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-secondary uppercase mb-1.5">Exit Cap Rate</label>
+                            <div className="relative">
+                                <input 
+                                    type="number" 
+                                    value={assumptions.capRate}
+                                    onChange={e => setAssumptions({ capRate: parseFloat(e.target.value) || 0})}
+                                    className="form-input pr-8"
+                                    step={0.1}
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-sm">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-4 bg-surface-subtle rounded-lg border border-border space-y-4">
+                        <h4 className="text-sm font-semibold text-primary border-b border-border-subtle pb-2">Pro Forma Growth Rates</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-medium text-secondary mb-1">Annual Rent Growth</label>
+                                <div className="relative">
+                                    <input 
+                                        type="number" 
+                                        value={assumptions.rentGrowth}
+                                        onChange={e => setAssumptions({ rentGrowth: parseFloat(e.target.value) || 0})}
+                                        className="form-input pr-8"
+                                        step={0.25}
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-sm">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-secondary mb-1">Annual OpEx Growth</label>
+                                <div className="relative">
+                                    <input 
+                                        type="number" 
+                                        value={assumptions.opexGrowth}
+                                        onChange={e => setAssumptions({ opexGrowth: parseFloat(e.target.value) || 0})}
+                                        className="form-input pr-8"
+                                        step={0.25}
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-sm">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="px-6 py-4 bg-surface-subtle border-t border-border flex justify-end">
+                    <button onClick={onClose} className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors">
+                        Close
+                    </button>
+                </div>
+             </div>
+        </div>
+    );
+};
+
+
 const Overview: React.FC = () => {
   const { currentPortfolio, portfolios, selectedPortfolioId, setSelectedPortfolioId, visibleKPIs, financingScenario, assumptions, investorReturnsScenario } = useAppStore(state => ({
     currentPortfolio: state.currentPortfolio,
@@ -83,6 +174,7 @@ const Overview: React.FC = () => {
   }));
   
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isAssumptionsOpen, setIsAssumptionsOpen] = useState(false);
 
   // Calculate Returns for KPI display
   const returnMetrics = useMemo(() => {
@@ -92,6 +184,92 @@ const Overview: React.FC = () => {
     const returns = calculateInvestorReturns(currentPortfolio, loanCalcs, assumptions, investorReturnsScenario, financingScenario);
     return returns ? returns.lp : null;
   }, [currentPortfolio, financingScenario, assumptions, investorReturnsScenario]);
+
+  // Generate and download executive summary
+  const handleDownloadSummary = () => {
+      if (!currentPortfolio) return;
+      
+      const loanCalcs = runDebtSizingEngine(financingScenario, currentPortfolio);
+      
+      // Create a beautiful HTML print view
+      const printContent = `
+        <html>
+          <head>
+            <title>Executive Summary - ${currentPortfolio.name}</title>
+            <style>
+              body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.5; padding: 40px; max-width: 800px; margin: 0 auto; }
+              h1 { color: #0f172a; border-bottom: 2px solid #e11d48; padding-bottom: 10px; margin-bottom: 30px; }
+              h2 { color: #334155; margin-top: 25px; font-size: 18px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+              .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 20px; }
+              .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+              .label { color: #64748b; font-weight: 500; }
+              .value { font-weight: 700; color: #0f172a; }
+              .highlight { color: #e11d48; }
+              .section { margin-bottom: 30px; }
+              .footer { margin-top: 50px; font-size: 12px; color: #94a3b8; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 20px;}
+            </style>
+          </head>
+          <body>
+            <h1>Executive Summary</h1>
+            
+            <div class="section">
+                <div class="row">
+                    <span class="label">Portfolio Name</span>
+                    <span class="value">${currentPortfolio.name}</span>
+                </div>
+                 <div class="row">
+                    <span class="label">Properties / Units</span>
+                    <span class="value">${currentPortfolio.propertyCount} Properties / ${currentPortfolio.totalRooms} Keys</span>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div>
+                    <h2>Valuation</h2>
+                    <div class="row"><span class="label">Purchase Price</span><span class="value">${fmt(currentPortfolio.valuation.askingPrice)}</span></div>
+                    <div class="row"><span class="label">Price Per Unit</span><span class="value">${fmt(currentPortfolio.valuation.pricePerRoom)}</span></div>
+                    <div class="row"><span class="label">Stabilized Value</span><span class="value">${fmt(currentPortfolio.valuation.stabilizedValue)}</span></div>
+                    <div class="row"><span class="label">Upside Potential</span><span class="value highlight">${fmtPct(currentPortfolio.valuation.upside)}</span></div>
+                </div>
+                <div>
+                     <h2>Financial Performance</h2>
+                    <div class="row"><span class="label">Current NOI</span><span class="value">${fmt(currentPortfolio.current.noi)}</span></div>
+                    <div class="row"><span class="label">Stabilized NOI</span><span class="value">${fmt(currentPortfolio.stabilized.noi)}</span></div>
+                    <div class="row"><span class="label">Entry Cap Rate</span><span class="value">${fmtPct(currentPortfolio.current.capRate)}</span></div>
+                    <div class="row"><span class="label">Stabilized Cap Rate</span><span class="value">${fmtPct(currentPortfolio.stabilized.capRate)}</span></div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div>
+                    <h2>Financing Structure</h2>
+                    <div class="row"><span class="label">Loan Amount</span><span class="value">${fmt(loanCalcs?.effectiveLoanAmount)}</span></div>
+                    <div class="row"><span class="label">LTV</span><span class="value">${fmtPct(loanCalcs?.loanToValue)}</span></div>
+                    <div class="row"><span class="label">Equity Required</span><span class="value">${fmt(loanCalcs?.equityRequired)}</span></div>
+                    <div class="row"><span class="label">Interest Rate</span><span class="value">${financingScenario.interestRate}%</span></div>
+                </div>
+                <div>
+                    <h2>Projected Returns (LP)</h2>
+                    <div class="row"><span class="label">IRR</span><span class="value">${fmtPct(returnMetrics?.irr)}</span></div>
+                    <div class="row"><span class="label">Equity Multiple</span><span class="value">${returnMetrics?.equityMultiple?.toFixed(2)}x</span></div>
+                    <div class="row"><span class="label">Avg. Cash-on-Cash</span><span class="value">${fmtPct((returnMetrics?.averageCashOnCash || 0) * 100)}</span></div>
+                </div>
+            </div>
+
+             <div class="footer">
+                Generated by TRAY Holdings Underwriting Model on ${new Date().toLocaleDateString()}
+            </div>
+            <script>window.print();</script>
+          </body>
+        </html>
+      `;
+
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.write(printContent);
+        win.document.close();
+      }
+  };
 
   if (!currentPortfolio) return null;
   
@@ -279,11 +457,17 @@ const Overview: React.FC = () => {
       <div className="grid grid-cols-1 gap-6">
             <SectionCard title="Quick Actions">
                 <div className="flex gap-4">
-                    <button className="flex-1 flex items-center justify-center gap-2 p-3 border border-border rounded-lg hover:bg-surface-subtle transition-colors text-sm font-medium text-primary">
+                    <button 
+                        onClick={handleDownloadSummary}
+                        className="flex-1 flex items-center justify-center gap-2 p-3 border border-border rounded-lg hover:bg-surface-subtle transition-colors text-sm font-medium text-primary"
+                    >
                         <FileText className="w-4 h-4 text-accent" />
-                        Download Executive Summary
+                        Print Executive Summary (PDF)
                     </button>
-                     <button className="flex-1 flex items-center justify-center gap-2 p-3 border border-border rounded-lg hover:bg-surface-subtle transition-colors text-sm font-medium text-primary">
+                     <button 
+                        onClick={() => setIsAssumptionsOpen(true)}
+                        className="flex-1 flex items-center justify-center gap-2 p-3 border border-border rounded-lg hover:bg-surface-subtle transition-colors text-sm font-medium text-primary"
+                    >
                         <SlidersHorizontal className="w-4 h-4 text-secondary" />
                         Adjust Global Assumptions
                     </button>
@@ -292,6 +476,7 @@ const Overview: React.FC = () => {
       </div>
 
       <DashboardConfigModal isOpen={isConfigOpen} onClose={() => setIsConfigOpen(false)} />
+      <GlobalAssumptionsModal isOpen={isAssumptionsOpen} onClose={() => setIsAssumptionsOpen(false)} />
 
     </div>
   );

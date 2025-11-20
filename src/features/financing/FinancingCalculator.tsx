@@ -30,7 +30,6 @@ const PriceInput = ({ value, onChange }: { value: number, onChange: (val: number
     }, [value, focused]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // Remove commas for parsing
         const raw = e.target.value.replace(/,/g, '');
         
         // Allow only numbers
@@ -169,32 +168,43 @@ const FinancingCalculator: React.FC = () => {
     if (!currentPortfolio) return <div>Loading...</div>;
 
     return (
-        <div className="animate-fade-in space-y-6">
+        <div className="animate-fade-in space-y-8 pb-10">
             <header>
                 <h2 className="text-2xl font-bold text-primary">Capital Markets & Financing</h2>
                 <p className="text-secondary text-sm mt-1">Structure debt, analyze leverage, and calculate returns on equity.</p>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Dominant Top Row: 3 Key Aspect Squares */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                {/* LEFT COLUMN: INPUTS */}
-                <div className="lg:col-span-4 space-y-6">
-                    <SectionCard title="Deal Inputs" className="bg-white">
-                         <InputGroup title="Valuation">
-                            <div className="pb-2">
-                                <PriceInput 
-                                    value={currentPortfolio.valuation?.askingPrice || 0} 
-                                    onChange={setGlobalPortfolioPrice} 
-                                />
+                {/* 1. Valuation Square */}
+                <SectionCard title="1. Valuation" className="bg-white h-full border-t-4 border-t-primary">
+                    <div className="space-y-6">
+                        <PriceInput 
+                            value={currentPortfolio.valuation?.askingPrice || 0} 
+                            onChange={setGlobalPortfolioPrice} 
+                        />
+                        
+                        <div className="grid grid-cols-2 gap-4 p-4 bg-surface-subtle rounded-xl border border-border">
+                            <div>
+                                <div className="text-xs text-secondary uppercase">Entry Cap</div>
+                                <div className="text-lg font-bold text-primary">{fmtPct(currentPortfolio.current?.capRate)}</div>
                             </div>
-                         </InputGroup>
-                    </SectionCard>
+                            <div>
+                                <div className="text-xs text-secondary uppercase">Stabilized Cap</div>
+                                <div className="text-lg font-bold text-success">{fmtPct(currentPortfolio.stabilized?.capRate)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </SectionCard>
 
-                    <SectionCard title="Loan Structure" className="bg-white">
-                        <div className="space-y-6">
-                            <InputGroup title="Sizing & Leverage">
-                                <div className="bg-surface-subtle p-3 rounded-lg border border-border mb-2">
-                                    <div className="flex justify-between items-center mb-2">
+                {/* 2. Loan Structure Square */}
+                <SectionCard title="2. Loan Structure" className="bg-white h-full border-t-4 border-t-accent">
+                     <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                             <div className="col-span-2">
+                                <div className="bg-surface-subtle p-2 rounded-lg border border-border mb-2">
+                                    <div className="flex justify-between items-center mb-1">
                                         <span className="text-xs font-medium text-secondary">Target LTV</span>
                                         <span className="text-sm font-bold text-primary">{financingScenario.targetLTV}%</span>
                                     </div>
@@ -205,66 +215,59 @@ const FinancingCalculator: React.FC = () => {
                                         className="w-full h-1.5 bg-border rounded-lg appearance-none cursor-pointer accent-accent"
                                     />
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                     <FloatingLabelInput label="Min DSCR" value={financingScenario.targetDSCR} onChange={v => handleParamChange('targetDSCR', v)} step={0.05} />
-                                     <FloatingLabelInput label="Interest Rate" value={financingScenario.interestRate} onChange={v => handleParamChange('interestRate', v)} type="percent" step={0.125} />
-                                </div>
-                            </InputGroup>
-
-                            <InputGroup title="Terms">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <FloatingLabelInput label="Amortization" value={financingScenario.amortizationYears} onChange={v => handleParamChange('amortizationYears', v)} type="years" />
-                                    <FloatingLabelInput label="Loan Term" value={financingScenario.termYears} onChange={v => handleParamChange('termYears', v)} type="years" />
-                                    <FloatingLabelInput label="I/O Period" value={financingScenario.ioPeriodMonths} onChange={v => handleParamChange('ioPeriodMonths', v)} type="months" />
-                                </div>
-                            </InputGroup>
-
-                             <InputGroup title="Closing Costs">
-                                <div className="space-y-3 p-3 bg-surface-subtle rounded-lg border border-border">
-                                    <div className="flex justify-between text-xs font-bold text-primary uppercase border-b border-border pb-1 mb-2">
-                                        <span>Total Closing</span>
-                                        <span>{fmt(loanCalcs?.totalClosingCosts || 0)}</span>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <FloatingLabelInput label="Legal" value={financingScenario.costs.legal} onChange={v => handleCostChange('legal', v)} type="currency" />
-                                        <FloatingLabelInput label="Title" value={financingScenario.costs.title} onChange={v => handleCostChange('title', v)} type="currency" />
-                                        <FloatingLabelInput label="Inspection" value={financingScenario.costs.inspection} onChange={v => handleCostChange('inspection', v)} type="currency" />
-                                        <FloatingLabelInput label="Appraisal" value={financingScenario.costs.appraisal} onChange={v => handleCostChange('appraisal', v)} type="currency" />
-                                        <FloatingLabelInput label="Mortgage Fees" value={financingScenario.costs.mortgageFees} onChange={v => handleCostChange('mortgageFees', v)} type="currency" />
-                                        <FloatingLabelInput label="Acquisition Fee" value={financingScenario.costs.acquisitionFee} onChange={v => handleCostChange('acquisitionFee', v)} type="currency" />
-                                        <FloatingLabelInput label="Reserves" value={financingScenario.costs.reserves} onChange={v => handleCostChange('reserves', v)} type="currency" />
-                                        <FloatingLabelInput label="3rd Party / Misc" value={financingScenario.costs.misc + financingScenario.costs.thirdParty} onChange={v => handleCostChange('misc', v)} type="currency" />
-                                    </div>
-                                    <div className="pt-2 border-t border-border">
-                                        <FloatingLabelInput label="Origination %" value={financingScenario.costs.origination} onChange={v => handleCostChange('origination', v)} type="percent" step={0.1} />
-                                    </div>
-                                </div>
-                            </InputGroup>
+                             </div>
+                             <FloatingLabelInput label="Interest Rate" value={financingScenario.interestRate} onChange={v => handleParamChange('interestRate', v)} type="percent" step={0.125} />
+                             <FloatingLabelInput label="Amortization" value={financingScenario.amortizationYears} onChange={v => handleParamChange('amortizationYears', v)} type="years" />
+                             <FloatingLabelInput label="Loan Term" value={financingScenario.termYears} onChange={v => handleParamChange('termYears', v)} type="years" />
+                             <FloatingLabelInput label="I/O Period" value={financingScenario.ioPeriodMonths} onChange={v => handleParamChange('ioPeriodMonths', v)} type="months" />
+                             <div className="col-span-2">
+                                 <FloatingLabelInput label="Min DSCR Constraint" value={financingScenario.targetDSCR} onChange={v => handleParamChange('targetDSCR', v)} step={0.05} />
+                             </div>
                         </div>
-                    </SectionCard>
-                </div>
+                    </div>
+                </SectionCard>
 
-                {/* RIGHT COLUMN: ANALYSIS */}
-                <div className="lg:col-span-8 space-y-6">
-                    
-                    {/* Sources & Uses / Capital Stack */}
-                    <SectionCard>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                            <div className="space-y-6">
-                                <h3 className="text-lg font-bold text-primary">Sources & Uses</h3>
-                                <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between py-2 border-b border-border-subtle">
-                                        <span className="text-secondary">Purchase Price</span>
-                                        <span className="font-medium text-primary">{fmt(loanCalcs?.totalCost - (loanCalcs?.totalClosingCosts || 0))}</span>
-                                    </div>
-                                    <div className="flex justify-between py-2 border-b border-border-subtle">
-                                        <span className="text-secondary">Closing Costs</span>
-                                        <span className="font-medium text-primary">{fmt(loanCalcs?.totalClosingCosts)}</span>
-                                    </div>
-                                    <div className="flex justify-between py-2 text-primary font-bold bg-surface-subtle px-2 -mx-2 rounded">
-                                        <span>Total Project Cost</span>
-                                        <span>{fmt(loanCalcs?.totalCost)}</span>
-                                    </div>
+                {/* 3. Closing Costs Square */}
+                <SectionCard 
+                    title="3. Closing Costs" 
+                    className="bg-white h-full border-t-4 border-t-secondary"
+                    action={<span className="text-xs font-bold text-primary bg-surface-subtle px-2 py-1 rounded border border-border">Total: {fmt(loanCalcs?.totalClosingCosts || 0)}</span>}
+                >
+                    <div className="space-y-3">
+                         <div className="grid grid-cols-2 gap-3">
+                            <FloatingLabelInput label="Origination %" value={financingScenario.costs.origination} onChange={v => handleCostChange('origination', v)} type="percent" step={0.1} />
+                            <FloatingLabelInput label="Mortgage Fees" value={financingScenario.costs.mortgageFees} onChange={v => handleCostChange('mortgageFees', v)} type="currency" />
+                            <FloatingLabelInput label="Legal" value={financingScenario.costs.legal} onChange={v => handleCostChange('legal', v)} type="currency" />
+                            <FloatingLabelInput label="Title" value={financingScenario.costs.title} onChange={v => handleCostChange('title', v)} type="currency" />
+                            <FloatingLabelInput label="Inspection" value={financingScenario.costs.inspection} onChange={v => handleCostChange('inspection', v)} type="currency" />
+                            <FloatingLabelInput label="Appraisal" value={financingScenario.costs.appraisal} onChange={v => handleCostChange('appraisal', v)} type="currency" />
+                            <FloatingLabelInput label="Acq. Fee" value={financingScenario.costs.acquisitionFee} onChange={v => handleCostChange('acquisitionFee', v)} type="currency" />
+                            <FloatingLabelInput label="Reserves" value={financingScenario.costs.reserves} onChange={v => handleCostChange('reserves', v)} type="currency" />
+                        </div>
+                    </div>
+                </SectionCard>
+
+            </div>
+
+            {/* Bottom Analysis Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                {/* Sources & Uses / Capital Stack */}
+                <div className="lg:col-span-8">
+                    <SectionCard title="Sources & Uses Analysis" className="h-full">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center h-full">
+                            <div className="space-y-4 text-sm">
+                                <div className="flex justify-between py-2 border-b border-border-subtle">
+                                    <span className="text-secondary">Purchase Price</span>
+                                    <span className="font-medium text-primary">{fmt(loanCalcs?.totalCost - (loanCalcs?.totalClosingCosts || 0))}</span>
+                                </div>
+                                <div className="flex justify-between py-2 border-b border-border-subtle">
+                                    <span className="text-secondary">Closing Costs</span>
+                                    <span className="font-medium text-primary">{fmt(loanCalcs?.totalClosingCosts)}</span>
+                                </div>
+                                <div className="flex justify-between py-2 text-primary font-bold bg-surface-subtle px-2 -mx-2 rounded">
+                                    <span>Total Project Cost</span>
+                                    <span>{fmt(loanCalcs?.totalCost)}</span>
                                 </div>
                             </div>
                             <div className="bg-surface-subtle p-6 rounded-xl border border-border">
@@ -286,10 +289,12 @@ const FinancingCalculator: React.FC = () => {
                             </div>
                         </div>
                     </SectionCard>
+                </div>
 
-                    {/* Debt Service & Ratios */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <SectionCard title="Debt Service Obligation">
+                {/* Debt Service & Ratios */}
+                <div className="lg:col-span-4">
+                    <div className="space-y-6 h-full flex flex-col">
+                         <SectionCard title="Debt Service Obligation" className="flex-1">
                             <div className="flex items-center gap-4 mb-6">
                                 <div className="p-3 bg-primary/5 rounded-full text-primary"><Calculator className="w-6 h-6" /></div>
                                 <div>
@@ -330,17 +335,10 @@ const FinancingCalculator: React.FC = () => {
                                     <div className="text-xs text-secondary mt-1">DSCR (Current)</div>
                                 </div>
                             </div>
-                             <div className="p-3 rounded bg-blue-50 border border-blue-100 text-xs text-blue-800 leading-relaxed">
-                                <span className="font-bold">Sizing Constraint:</span> {loanCalcs?.dscrCapped ? 'Restricted by DSCR' : 'Restricted by LTV'}. 
-                                {loanCalcs?.dscrCapped 
-                                    ? ` Max loan limited to ${fmt(loanCalcs.maxLoanByDSCR)} to maintain ${financingScenario.targetDSCR}x coverage.`
-                                    : ` Max loan set by ${financingScenario.targetLTV}% LTV target.`
-                                }
-                            </div>
                         </SectionCard>
                     </div>
-
                 </div>
+
             </div>
         </div>
     );

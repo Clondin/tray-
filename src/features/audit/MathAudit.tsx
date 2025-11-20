@@ -51,23 +51,47 @@ const MathAudit: React.FC = () => {
     const stabilizedNOI = currentPortfolio.stabilized.noi;
     
     return (
-        <div className="space-y-8 animate-fade-in">
+        <div className="space-y-8 animate-fade-in pb-12">
              <header>
                 <h2 className="text-2xl font-bold text-primary">Math Audit & Verification</h2>
                 <p className="text-secondary text-sm mt-1">Transparent breakdown of all core calculations driving the model.</p>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                
-                {/* 1. Valuation & NOI */}
-                <SectionCard title="1. Valuation & NOI Logic">
+
+                {/* 0. Operational Calculations */}
+                <SectionCard title="1. Operational NOI Logic">
                     <div className="space-y-4">
+                         <Step 
+                            label="Potential Gross Income (Stabilized)"
+                            value={currentPortfolio.stabilized.gri / (currentPortfolio.stabilized.occupancy / 100)}
+                            resultType="currency"
+                            formula={`Sum(Unit Pro Forma Rents) × 12`}
+                        />
+                        <Step 
+                            label="Effective Gross Income (EGI)"
+                            value={currentPortfolio.stabilized.gri}
+                            resultType="currency"
+                            formula={`Potential Gross Income × Stabilized Occupancy [${fmtPct(currentPortfolio.stabilized.occupancy)}]`}
+                        />
+                        <Step 
+                            label="Operating Expenses"
+                            value={currentPortfolio.stabilized.opex}
+                            resultType="currency"
+                            formula={`Sum(Taxes + Insurance + Admin + Repairs + Mgmt + Utilities...)`}
+                        />
                         <Step 
                             label="Net Operating Income (NOI)"
                             value={stabilizedNOI}
                             resultType="currency"
-                            formula={`Gross Income [${fmt(currentPortfolio.stabilized.gri)}] - OpEx [${fmt(currentPortfolio.stabilized.opex)}]`}
+                            formula={`EGI [${fmt(currentPortfolio.stabilized.gri)}] - OpEx [${fmt(currentPortfolio.stabilized.opex)}]`}
                         />
+                    </div>
+                </SectionCard>
+                
+                {/* 1. Valuation & NOI */}
+                <SectionCard title="2. Valuation & Exit">
+                    <div className="space-y-4">
                         <Step 
                             label="NOI Growth Projection (Operating Leverage)"
                             value="Variable"
@@ -90,19 +114,25 @@ const MathAudit: React.FC = () => {
                 </SectionCard>
 
                 {/* 2. Loan Sizing */}
-                <SectionCard title="2. Debt Sizing & Service">
+                <SectionCard title="3. Debt Sizing & Service">
                     <div className="space-y-4">
                         <Step 
-                            label="Effective Loan Amount"
-                            value={loanCalcs.effectiveLoanAmount}
+                            label="Constraint: Max Loan by LTV"
+                            value={loanCalcs.maxLoanByLTV}
                             resultType="currency"
                             formula={`Purchase Price [${fmt(price)}] × Target LTV [${financingScenario.targetLTV}%]`}
                         />
                         <Step 
-                            label="Equity Required"
-                            value={loanCalcs.equityRequired}
+                            label="Constraint: Max Loan by DSCR"
+                            value={loanCalcs.maxLoanByDSCR}
                             resultType="currency"
-                            formula={`(Price [${fmt(price)}] + Closing Costs [${fmt(loanCalcs.totalClosingCosts)}]) - Loan Amount [${fmt(loanCalcs.effectiveLoanAmount)}]`}
+                            formula={`NOI [${fmt(stabilizedNOI)}] / (Target DSCR [${financingScenario.targetDSCR}] × Debt Constant)`}
+                        />
+                        <Step 
+                            label="Effective Loan Amount"
+                            value={loanCalcs.effectiveLoanAmount}
+                            resultType="currency"
+                            formula={`Sizing Method: ${financingScenario.sizingMethod.toUpperCase()}`}
                         />
                          <Step 
                             label="Annual Debt Service"
@@ -113,30 +143,38 @@ const MathAudit: React.FC = () => {
                     </div>
                 </SectionCard>
 
-                {/* 3. Global Inputs Check */}
-                 <SectionCard title="3. Global Inputs Check">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <span className="text-secondary block">Purchase Price</span>
-                            <span className="font-bold text-primary">{fmt(price)}</span>
-                        </div>
-                         <div>
-                            <span className="text-secondary block">Total Rooms</span>
-                            <span className="font-bold text-primary">{totalRooms}</span>
-                        </div>
-                        <div>
-                            <span className="text-secondary block">Market Rent</span>
-                            <span className="font-bold text-primary">{fmt(assumptions.marketRent)}/mo</span>
-                        </div>
-                         <div>
-                            <span className="text-secondary block">OpEx</span>
-                            <span className="font-bold text-primary">{fmt(assumptions.opexPerRoom)}/rm/yr</span>
-                        </div>
-                    </div>
+                {/* 3. Closing Costs Breakdown */}
+                <SectionCard title="4. Transaction Costs Breakdown">
+                     <div className="space-y-4">
+                        <Step 
+                            label="Origination Fee"
+                            value={loanCalcs.effectiveLoanAmount * (financingScenario.costs.origination / 100)}
+                            resultType="currency"
+                            formula={`Loan Amount [${fmt(loanCalcs.effectiveLoanAmount)}] × ${financingScenario.costs.origination}%`}
+                        />
+                        <Step 
+                            label="Total Closing Costs"
+                            value={loanCalcs.totalClosingCosts}
+                            resultType="currency"
+                            formula={`Origination + Legal + Title + Reports + Reserves + Misc (Sum of all input fields)`}
+                        />
+                        <Step 
+                            label="Total Project Cost (All In)"
+                            value={loanCalcs.totalCost}
+                            resultType="currency"
+                            formula={`Purchase Price [${fmt(price)}] + Total Closing Costs [${fmt(loanCalcs.totalClosingCosts)}]`}
+                        />
+                         <Step 
+                            label="Equity Required"
+                            value={loanCalcs.equityRequired}
+                            resultType="currency"
+                            formula={`Total Project Cost [${fmt(loanCalcs.totalCost)}] - Loan Amount [${fmt(loanCalcs.effectiveLoanAmount)}]`}
+                        />
+                     </div>
                 </SectionCard>
 
                 {/* 4. Investor Returns & Waterfall */}
-                <SectionCard title="4. Waterfall & Returns Engine">
+                <SectionCard title="5. Returns Waterfall">
                     <div className="space-y-4">
                          <Step 
                             label="Distributable Cash (Operating)"
@@ -157,22 +195,22 @@ const MathAudit: React.FC = () => {
                             formula={`Remaining Cash × LP (${investorReturnsScenario.lpOwnershipPercent * 100}%) / GP (${investorReturnsScenario.gpOwnershipPercent * 100}%)`}
                         />
                         <Step 
+                            label="Avg. Cash-on-Cash"
+                            value={dealReturns.lp.averageCashOnCash * 100}
+                            resultType="percent"
+                            formula={`Average of (Annual Operating Distribution / Initial LP Capital). Excludes Sale.`}
+                        />
+                        <Step 
                             label="Equity Multiple"
                             value={dealReturns.lp.equityMultiple}
                             resultType="number"
                             formula={`Total Distributions (Ops + Sale) / Contribution [${fmt(dealReturns.lp.capitalContribution)}]`}
                         />
-                        <Step 
-                            label="Avg. Cash-on-Cash (Operating)"
-                            value={dealReturns.lp.averageCashOnCash * 100}
-                            resultType="percent"
-                            formula={`Average of (Operating Distribution / Capital). Excludes Sale Proceeds.`}
-                        />
                     </div>
                 </SectionCard>
 
                 {/* 5. Amortization Logic */}
-                <SectionCard title="5. Amortization & Balance">
+                <SectionCard title="6. Amortization & Balance">
                     <div className="space-y-4">
                         <Step 
                             label="Monthly Payment"

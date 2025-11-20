@@ -3,7 +3,6 @@ import React, { useState, useCallback } from 'react';
 import { useAppStore } from '../../store/appStore';
 import type { ExpenseDetail, CalculatedProperty } from '../../types';
 import { ArrowUpRight, Search } from '../../components/icons';
-import { SectionCard } from '../../components/common/SectionCard';
 import { fmt } from '../../utils/formatters';
 
 // Helper for cell inputs
@@ -12,14 +11,13 @@ const TableInput: React.FC<{
     onChange: (val: number) => void; 
     placeholder?: string;
     isGlobal?: boolean;
-}> = ({ value, onChange, placeholder, isGlobal }) => {
-    const [localVal, setLocalVal] = useState(value ? value.toString() : '');
+    disabled?: boolean;
+}> = ({ value, onChange, placeholder, isGlobal, disabled }) => {
+    const [localVal, setLocalVal] = useState(value ? Math.round(value).toString() : '');
 
-    // Sync if value changes externally (e.g. global update affecting calculated total)
+    // Sync if value changes externally
     React.useEffect(() => {
-        if (document.activeElement !== document.getElementById(`input-${value}`)) {
-             setLocalVal(value ? Math.round(value).toString() : '');
-        }
+        setLocalVal(value ? Math.round(value).toString() : '');
     }, [value]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,6 +31,14 @@ const TableInput: React.FC<{
         }
     };
 
+    if (disabled) {
+        return (
+             <div className={`w-full text-right py-1.5 px-2 text-xs ${isGlobal ? 'text-rose-700 font-bold' : 'text-gray-400'}`}>
+                {value === 0 ? '-' : Math.round(value).toLocaleString()}
+            </div>
+        );
+    }
+
     return (
         <input 
             type="number"
@@ -40,54 +46,72 @@ const TableInput: React.FC<{
             onChange={handleChange}
             placeholder={placeholder}
             className={`
-                w-full bg-transparent border-b border-transparent text-right p-1 text-xs focus:outline-none focus:border-accent transition-colors
-                ${isGlobal ? 'font-bold text-accent placeholder-accent/50' : 'text-secondary focus:bg-white'}
+                w-full text-right py-1.5 px-2 text-xs focus:outline-none transition-all rounded
+                ${isGlobal 
+                    ? 'bg-white border border-rose-200 text-rose-700 font-bold focus:ring-2 focus:ring-rose-500/20 placeholder-rose-300' 
+                    : 'bg-transparent border border-transparent hover:border-border focus:bg-white focus:border-accent text-gray-700'}
             `}
         />
     );
 };
 
-// Memoized Row Component to prevent lag
+// Memoized Row Component
 const ExpenseRow = React.memo(({ 
     prop, 
     expenseFields, 
     onNavigate,
     mode,
+    year,
+    growthRate,
     onUpdate
 }: {
     prop: CalculatedProperty;
     expenseFields: (keyof ExpenseDetail)[];
     onNavigate: (id: number) => void;
     mode: 't12' | 'proforma';
+    year: number;
+    growthRate: number;
     onUpdate: (propId: number, field: keyof ExpenseDetail, val: number) => void;
 }) => {
     const details = mode === 't12' ? prop.currentExpenseDetail : prop.stabilizedExpenseDetail;
-    const total = Object.values(details).reduce((sum, v) => sum + v, 0);
+    
+    // Calculate Projection
+    const isProjection = mode === 'proforma' && year > 1;
+    const multiplier = isProjection ? Math.pow(1 + growthRate, year - 1) : 1;
 
+    // Calculate row total
+    let rowTotal = 0;
+    
     return (
-        <tr className="border-b border-border hover:bg-surface-hover last:border-b-0 group">
-            <td className="p-3 sticky left-0 bg-white z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+        <tr className="group border-b border-border/50 last:border-b-0 hover:bg-gray-50 transition-colors">
+            <td className="p-3 sticky left-0 bg-white group-hover:bg-gray-50 z-10 border-r border-transparent group-hover:border-border/50 transition-colors">
                 <button 
                     onClick={() => onNavigate(prop.id)}
-                    className="flex items-center justify-between w-full text-left font-medium text-primary hover:text-accent transition-colors"
+                    className="flex items-center justify-between w-full text-left group/btn"
                 >
                     <div className="flex flex-col">
-                        <span className="truncate max-w-[160px]" title={prop.address}>{prop.address}</span>
-                        <span className="text-[10px] text-muted">{prop.rooms} Units</span>
+                        <span className="font-semibold text-gray-700 text-sm truncate max-w-[180px] group-hover/btn:text-accent transition-colors">{prop.address.split(',')[0]}</span>
+                        <span className="text-[10px] text-gray-400">{prop.city} • {prop.rooms} Units</span>
                     </div>
-                    <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
             </td>
-            {expenseFields.map(key => (
-                <td key={key} className="p-1 min-w-[80px]">
-                    <TableInput 
-                        value={details[key]} 
-                        onChange={(val) => onUpdate(prop.id, key, val)}
-                    />
-                </td>
-            ))}
-            <td className="p-3 text-right font-bold text-primary sticky right-0 bg-white z-10 shadow-[-2px_0_5px_rgba(0,0,0,0.05)]">
-                {fmt(total)}
+            {expenseFields.map(key => {
+                const baseVal = details[key];
+                const projectedVal = baseVal * multiplier;
+                rowTotal += projectedVal;
+                
+                return (
+                    <td key={key} className={`p-1 min-w-[90px] ${isProjection ? 'bg-gray-50/30' : ''}`}>
+                        <TableInput 
+                            value={projectedVal} 
+                            onChange={(val) => onUpdate(prop.id, key, val)}
+                            disabled={isProjection} // Disable inputs for projection years
+                        />
+                    </td>
+                );
+            })}
+            <td className="p-3 text-right font-medium text-gray-900 sticky right-0 bg-white group-hover:bg-gray-50 z-10 border-l border-border/50 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+                {fmt(rowTotal)}
             </td>
         </tr>
     );
@@ -99,7 +123,8 @@ const StressTest: React.FC = () => {
         currentPortfolio, calculatedProperties, openPropertyModal, setPropertyViewTab,
         setT12ExpenseOverride, setExpenseOverride,
         globalT12PerRoom, globalProFormaPerRoom,
-        setGlobalT12PerRoom, setGlobalProFormaPerRoom
+        setGlobalT12PerRoom, setGlobalProFormaPerRoom,
+        assumptions
     } = useAppStore(state => ({
         currentPortfolio: state.currentPortfolio,
         calculatedProperties: state.calculatedProperties,
@@ -110,10 +135,12 @@ const StressTest: React.FC = () => {
         globalT12PerRoom: state.globalT12PerRoom,
         globalProFormaPerRoom: state.globalProFormaPerRoom,
         setGlobalT12PerRoom: state.setGlobalT12PerRoom,
-        setGlobalProFormaPerRoom: state.setGlobalProFormaPerRoom
+        setGlobalProFormaPerRoom: state.setGlobalProFormaPerRoom,
+        assumptions: state.assumptions
     }));
 
     const [expenseTab, setExpenseTab] = useState<'t12' | 'proforma'>('t12');
+    const [proFormaYear, setProFormaYear] = useState<number>(1);
     const [showFullHeaders, setShowFullHeaders] = useState(false);
     const [filterText, setFilterText] = useState('');
 
@@ -152,17 +179,30 @@ const StressTest: React.FC = () => {
         if (expenseTab === 't12') {
             setT12ExpenseOverride(propId, field, val);
         } else {
-            setExpenseOverride(propId, field, val);
+            // Only update if Year 1 (Base Pro Forma)
+            if (proFormaYear === 1) {
+                setExpenseOverride(propId, field, val);
+            }
         }
-    }, [expenseTab, setT12ExpenseOverride, setExpenseOverride]);
+    }, [expenseTab, proFormaYear, setT12ExpenseOverride, setExpenseOverride]);
 
     const handleGlobalUpdate = (field: keyof ExpenseDetail, val: number) => {
         if (expenseTab === 't12') {
             setGlobalT12PerRoom(field, val);
         } else {
-            setGlobalProFormaPerRoom(field, val);
+             if (proFormaYear === 1) {
+                setGlobalProFormaPerRoom(field, val);
+             }
         }
     };
+
+    // Calculate Multipliers
+    const annualGrowthRate = assumptions.opexGrowth / 100;
+    const isProjection = expenseTab === 'proforma' && proFormaYear > 1;
+    const multiplier = isProjection ? Math.pow(1 + annualGrowthRate, proFormaYear - 1) : 1;
+
+    // Global Row Values
+    const activeGlobalPerRoom = expenseTab === 't12' ? globalT12PerRoom : globalProFormaPerRoom;
 
     // Totals for Footer
     const totalDetails: Record<string, number> = {};
@@ -172,104 +212,120 @@ const StressTest: React.FC = () => {
     properties.forEach(p => {
         const det = expenseTab === 't12' ? p.currentExpenseDetail : p.stabilizedExpenseDetail;
         expenseFields.forEach(key => {
-            totalDetails[key] += det[key];
-            grandTotal += det[key];
+            const projectedVal = det[key] * multiplier;
+            totalDetails[key] += projectedVal;
+            grandTotal += projectedVal;
         });
     });
 
-    const activeGlobalPerRoom = expenseTab === 't12' ? globalT12PerRoom : globalProFormaPerRoom;
-
     return (
-        <div className="space-y-6 animate-fade-in pb-8">
+        <div className="space-y-4 animate-fade-in pb-8">
             
-            <div className="flex flex-col md:flex-row justify-between items-end gap-6">
-                <div>
-                    <h2 className="text-2xl font-bold text-primary">Expense Manager</h2>
-                    <p className="text-secondary text-sm mt-1">Detailed control over property-level operating expenses.</p>
+            {/* Header / Toolbar */}
+            <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 bg-white p-2 rounded-xl border border-border shadow-sm">
+                
+                <div className="flex items-center gap-3">
+                    {/* Mode Toggle */}
+                    <div className="flex bg-surface-subtle p-1 rounded-lg border border-border">
+                        <button 
+                            onClick={() => { setExpenseTab('t12'); setProFormaYear(1); }}
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${expenseTab === 't12' ? 'bg-white shadow-sm text-primary ring-1 ring-black/5' : 'text-secondary hover:text-primary'}`}
+                        >
+                            T12 / Actuals
+                        </button>
+                        <button 
+                            onClick={() => setExpenseTab('proforma')}
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${expenseTab === 'proforma' ? 'bg-white shadow-sm text-primary ring-1 ring-black/5' : 'text-secondary hover:text-primary'}`}
+                        >
+                            Pro Forma
+                        </button>
+                    </div>
+
+                    {/* Year Selector (Pro Forma Only) */}
+                    {expenseTab === 'proforma' && (
+                         <div className="flex bg-surface-subtle p-1 rounded-lg border border-border animate-fade-in">
+                            {[1, 2, 3, 4, 5].map(year => (
+                                <button
+                                    key={year}
+                                    onClick={() => setProFormaYear(year)}
+                                    className={`
+                                        px-3 py-1.5 text-xs font-bold rounded-md transition-all min-w-[40px]
+                                        ${proFormaYear === year 
+                                            ? 'bg-white text-rose-600 shadow-sm ring-1 ring-black/5' 
+                                            : 'text-secondary hover:bg-white/50 hover:text-primary'}
+                                    `}
+                                >
+                                    Yr {year}
+                                </button>
+                            ))}
+                         </div>
+                    )}
+                </div>
+                
+                <div className="flex items-center gap-6 w-full xl:w-auto justify-end">
+                     {/* Full Names Toggle */}
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                        <span className="text-xs font-semibold text-secondary group-hover:text-primary transition-colors">Full Names</span>
+                        <div className="relative">
+                            <input type="checkbox" className="sr-only peer" checked={showFullHeaders} onChange={() => setShowFullHeaders(!showFullHeaders)} />
+                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                        </div>
+                    </label>
+
+                    {/* Search */}
+                    <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
+                        <input 
+                            type="text" 
+                            placeholder="Filter properties..." 
+                            className="w-full pl-9 pr-4 py-1.5 text-sm border border-border rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all bg-surface-subtle focus:bg-white"
+                            value={filterText}
+                            onChange={(e) => setFilterText(e.target.value)}
+                        />
+                    </div>
                 </div>
             </div>
 
-            {/* Main Expense Table Section */}
-            <SectionCard className="overflow-hidden">
-                
-                {/* Toolbar */}
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-                    <div className="flex items-center gap-4">
-                        {/* View Toggle */}
-                        <div className="flex bg-surface-subtle p-1 rounded-lg border border-border">
-                            <button 
-                                onClick={() => setExpenseTab('t12')}
-                                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${expenseTab === 't12' ? 'bg-white shadow text-primary' : 'text-secondary hover:text-primary'}`}
-                            >
-                                T12 / Actuals
-                            </button>
-                            <button 
-                                onClick={() => setExpenseTab('proforma')}
-                                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${expenseTab === 'proforma' ? 'bg-white shadow text-primary' : 'text-secondary hover:text-primary'}`}
-                            >
-                                Pro Forma
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-4 w-full sm:w-auto">
-                         {/* Header Toggle */}
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-secondary">Full Names</span>
-                            <button 
-                                onClick={() => setShowFullHeaders(!showFullHeaders)}
-                                className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors duration-300 ${showFullHeaders ? 'bg-accent' : 'bg-gray-300'}`}
-                            >
-                                <div className={`bg-white w-3 h-3 rounded-full shadow-sm transform duration-300 ${showFullHeaders ? 'translate-x-5' : ''}`}></div>
-                            </button>
-                        </div>
-
-                         <div className="relative w-full sm:w-48">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                            <input 
-                                type="text" 
-                                placeholder="Filter..." 
-                                className="w-full pl-9 pr-4 py-1.5 text-sm border border-border rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                                value={filterText}
-                                onChange={(e) => setFilterText(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Table */}
-                <div className="overflow-x-auto border border-border rounded-lg max-h-[60vh]">
-                    <table className="w-full text-sm border-collapse relative">
-                        <thead>
-                            <tr className="bg-surface-subtle border-b border-border">
-                                <th className="p-3 text-left font-bold text-secondary sticky top-0 left-0 z-30 bg-surface-subtle shadow-[2px_2px_5px_rgba(0,0,0,0.05)] min-w-[180px]">
-                                    Property / Global Input
+            {/* Main Expense Table */}
+            <div className="bg-white rounded-xl border border-border shadow-card overflow-hidden flex flex-col h-[calc(100vh-240px)]">
+                <div className="overflow-auto flex-1 relative">
+                    <table className="w-full text-sm border-collapse">
+                        <thead className="sticky top-0 z-30">
+                            <tr className="bg-gray-50 border-b border-border shadow-sm">
+                                <th className="p-3 text-left font-bold text-gray-500 uppercase tracking-wider text-xs sticky left-0 z-30 bg-gray-50 min-w-[200px] border-r border-border/50">
+                                    Property
                                 </th>
                                 {expenseFields.map(key => (
-                                    <th key={key} className="p-3 text-right font-bold text-secondary whitespace-nowrap min-w-[80px] sticky top-0 z-20 bg-surface-subtle">
+                                    <th key={key} className="p-3 text-right font-bold text-gray-500 text-xs whitespace-nowrap min-w-[100px]">
                                         {showFullHeaders ? fullLabels[key] : shortLabels[key]}
                                     </th>
                                 ))}
-                                <th className="p-3 text-right font-bold text-primary sticky top-0 right-0 z-30 bg-surface-subtle shadow-[-2px_2px_5px_rgba(0,0,0,0.05)] min-w-[100px]">Total</th>
+                                <th className="p-3 text-right font-bold text-gray-900 text-xs sticky right-0 z-30 bg-gray-50 min-w-[120px] border-l border-border/50 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+                                    Total
+                                </th>
                             </tr>
                         </thead>
-                        <tbody>
-                             {/* Global Inputs Row */}
-                             <tr className="bg-accent-light/30 border-b-2 border-accent/20">
-                                <td className="p-3 sticky left-0 bg-accent-light/30 z-10 border-r border-accent/10">
-                                    <div className="font-bold text-accent text-xs uppercase tracking-wider">Global Per Unit</div>
-                                    <div className="text-[10px] text-accent-hover">Applies to all ({expenseTab})</div>
+                        <tbody className="divide-y divide-border/50">
+                             {/* Global Deal Defaults Row - Pink Highlight */}
+                             <tr className="bg-rose-50/80 border-b-2 border-rose-100">
+                                <td className="p-3 sticky left-0 bg-rose-50 z-20 border-r border-rose-100 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+                                    <div className="font-bold text-rose-700 text-sm">Deal Defaults</div>
+                                    <div className="text-[10px] font-medium text-rose-500 uppercase tracking-wider mt-0.5">$/Unit/Year</div>
                                 </td>
-                                {expenseFields.map(key => (
-                                    <td key={key} className="p-1">
-                                        <TableInput 
-                                            value={activeGlobalPerRoom[key] || 0}
-                                            onChange={(val) => handleGlobalUpdate(key, val)}
-                                            isGlobal
-                                        />
-                                    </td>
-                                ))}
-                                <td className="p-3 text-right font-bold text-accent sticky right-0 bg-accent-light/30 z-10">
+                                {expenseFields.map(key => {
+                                    const val = (activeGlobalPerRoom[key] || 0) * multiplier;
+                                    return (
+                                        <td key={key} className="p-1">
+                                            <TableInput 
+                                                value={val}
+                                                onChange={(v) => handleGlobalUpdate(key, v)}
+                                                isGlobal
+                                                disabled={isProjection}
+                                            />
+                                        </td>
+                                    );
+                                })}
+                                <td className="p-3 text-right font-bold text-rose-700 sticky right-0 bg-rose-50 z-20 border-l border-rose-100">
                                      -
                                 </td>
                             </tr>
@@ -282,29 +338,28 @@ const StressTest: React.FC = () => {
                                     expenseFields={expenseFields}
                                     onNavigate={handleNavigateToProperty}
                                     mode={expenseTab}
+                                    year={proFormaYear}
+                                    growthRate={annualGrowthRate}
                                     onUpdate={handlePropertyUpdate}
                                 />
                             ))}
                         </tbody>
-                        <tfoot>
-                            <tr className="bg-primary text-white font-bold shadow-inner border-t-2 border-primary/20">
-                                <td className="p-3 sticky bottom-0 left-0 bg-primary z-30 text-sm uppercase tracking-wide shadow-[2px_0_5px_rgba(0,0,0,0.2)]">
-                                    Portfolio Total
-                                </td>
-                                {expenseFields.map(key => (
-                                    <td key={key} className="p-3 text-right text-xs whitespace-nowrap sticky bottom-0 bg-primary z-20">
-                                        {Math.round(totalDetails[key]).toLocaleString()}
-                                    </td>
-                                ))}
-                                <td className="p-3 text-right text-sm text-accent-light sticky bottom-0 right-0 bg-primary z-30 shadow-[-2px_0_5px_rgba(0,0,0,0.2)]">
-                                    {fmt(grandTotal)}
-                                </td>
-                            </tr>
-                        </tfoot>
                     </table>
                 </div>
-
-            </SectionCard>
+                
+                {/* Footer Totals */}
+                <div className="border-t border-border bg-white p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
+                     <div className="flex items-center justify-between text-sm">
+                         <span className="font-bold text-primary">Portfolio Totals</span>
+                         <div className="flex gap-8">
+                            <div className="text-right">
+                                <span className="text-xs text-secondary uppercase tracking-wider block mb-1">Total Expenses</span>
+                                <span className="text-lg font-bold text-primary">{fmt(grandTotal)}</span>
+                            </div>
+                         </div>
+                     </div>
+                </div>
+            </div>
         </div>
     );
 };

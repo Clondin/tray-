@@ -3,10 +3,9 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useAppStore } from '../../store/appStore';
 import type { FinancingScenario } from '../../types';
 import { runDebtSizingEngine } from '../../utils/loanCalculations';
-import { KpiValue } from '../../components/common/KpiCard';
 import { SectionCard } from '../../components/common/SectionCard';
 import { fmt, fmtPct } from '../../utils/formatters';
-import { Calculator, PieChart, TrendingUp, DollarSign } from '../../components/icons';
+import { Calculator } from '../../components/icons';
 import FinancingInputs from './components/FinancingInputs';
 
 const InputGroup: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (

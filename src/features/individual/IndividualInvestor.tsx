@@ -41,19 +41,28 @@ const IndividualInvestor: React.FC<IndividualInvestorProps> = ({ onShowDetails }
 
     const totalEquityRequired = dealReturns.totalEquityRequired;
     
-    // Calculate LP Equity Portion
-    const lpNotionalEquity = totalEquityRequired * investorReturnsScenario.lpOwnershipPercent;
+    // The LP Capital Pool is 100% of the Equity Required (LPs fund the entire equity check).
+    const lpCapitalPoolSize = totalEquityRequired;
     
-    // User's share of the LP Pool
-    const userShareOfLPPool = lpNotionalEquity > 0 ? investmentAmount / lpNotionalEquity : 0;
+    // User's share of the LP Pool is simply their check size divided by total equity needed.
+    // Ensure investmentAmount doesn't exceed total equity for calculation logic
+    const validInvestment = Math.min(investmentAmount, lpCapitalPoolSize);
+    const userShareOfLPPool = lpCapitalPoolSize > 0 ? validInvestment / lpCapitalPoolSize : 0;
 
-    const userTotalReturn = dealReturns.investor.cashFlow * userShareOfLPPool;
-    const userAvgCoC = dealReturns.investor.averageCashOnCash; // This is % based, so it applies to the individual equally
-    const userIRR = dealReturns.investor.irr;
-    const userEquityMultiple = dealReturns.investor.equityMultiple;
+    // The return metrics (cash flow) for the user are their share of the *Total LP Distributions*.
+    const userTotalReturn = dealReturns.lp.totalDistributions * userShareOfLPPool;
+    
+    // Percentage-based metrics apply equally to the individual as they do to the LP class aggregate
+    const userAvgCoC = dealReturns.lp.averageCashOnCash; 
+    const userIRR = dealReturns.lp.irr;
+    const userEquityMultiple = dealReturns.lp.equityMultiple;
 
     const handleCardClick = () => {
-        onShowDetails(investmentAmount, userShareOfLPPool);
+        onShowDetails(validInvestment, userShareOfLPPool);
+    };
+
+    const setMax = () => {
+        setInvestmentAmount(totalEquityRequired);
     };
 
     return (
@@ -62,7 +71,10 @@ const IndividualInvestor: React.FC<IndividualInvestorProps> = ({ onShowDetails }
                 <div className="md:col-span-4 space-y-4">
                     <SectionCard title="Investment Inputs">
                         <div>
-                            <label className="block text-xs font-bold text-secondary uppercase tracking-wider mb-2">Your Check Size</label>
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="text-xs font-bold text-secondary uppercase tracking-wider">Your Check Size</label>
+                                <button onClick={setMax} className="text-[10px] font-bold text-accent hover:underline uppercase">Max (100%)</button>
+                            </div>
                             <div className="relative">
                                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold">$</div>
                                 <input 
@@ -75,7 +87,12 @@ const IndividualInvestor: React.FC<IndividualInvestorProps> = ({ onShowDetails }
                             </div>
                             <div className="flex justify-between items-center mt-3 p-2 bg-surface-subtle rounded border border-border">
                                 <span className="text-xs text-secondary">LP Pool Ownership</span>
+                                {/* Multiply by 100 for display, fmtPct handles % suffix */}
                                 <span className="text-xs font-bold text-primary">{fmtPct(userShareOfLPPool * 100)}</span>
+                            </div>
+                            <div className="flex justify-between items-center mt-1 p-2 bg-surface-subtle rounded border border-border">
+                                <span className="text-xs text-secondary">Total Deal Equity</span>
+                                <span className="text-xs font-medium text-secondary">{fmt(totalEquityRequired)}</span>
                             </div>
                         </div>
 
@@ -129,9 +146,9 @@ const IndividualInvestor: React.FC<IndividualInvestorProps> = ({ onShowDetails }
                     </div>
                     <div className="p-4 bg-blue-50 text-blue-900 text-sm rounded-lg border border-blue-100 leading-relaxed shadow-sm">
                         <strong className="block mb-1">Return Logic Verification:</strong> 
-                        Your ${fmt(investmentAmount)} investment receives a {fmtPct(investorReturnsScenario.lpPreferredReturnRate*100)} preferred return annually (paid first). 
-                        Remaining profits are split {fmtPct(investorReturnsScenario.lpOwnershipPercent*100)} to you and {fmtPct(investorReturnsScenario.gpOwnershipPercent*100)} to the sponsor. 
-                        Calculations assume a {financingScenario.termYears}-year hold period.
+                        Your ${fmt(validInvestment)} investment represents {fmtPct(userShareOfLPPool * 100)} of the LP equity. 
+                        You receive a {fmtPct(investorReturnsScenario.lpPreferredReturnRate*100)} preferred return on your capital annually (paid first). 
+                        Remaining deal profits are split {fmtPct(investorReturnsScenario.lpOwnershipPercent*100)} to LPs (you) and {fmtPct(investorReturnsScenario.gpOwnershipPercent*100)} to the Sponsor.
                     </div>
                 </div>
             </div>

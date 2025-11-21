@@ -25,6 +25,7 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
     const purchasePrice = portfolio.valuation.askingPrice || 0;
     const currentNOI = portfolio.current?.noi || 0;
     const stabilizedNOI = portfolio.stabilized?.noi || 0;
+    const renovationCapEx = portfolio.renovation?.totalCapEx || 0;
 
     // --- 1. Calculate Max Loan from Constraints ---
     const annualDebtConstant = calculateAnnualDebtConstant(interestRate, amortizationYears);
@@ -33,6 +34,7 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
         ? stabilizedNOI / (targetDSCR * annualDebtConstant) 
         : 0;
 
+    // LTV typically applies to Purchase Price in simple models, but can be LTC for value-add
     const maxLoanByLTV = purchasePrice * (targetLTV / 100);
 
     // --- 2. Determine Effective Loan Amount ---
@@ -72,7 +74,8 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
         (costs.misc || 0) +
         originationFee;
 
-    const totalCost = purchasePrice + totalClosingCosts;
+    // Total Project Cost includes Purchase Price + Renovation CapEx + Closing Costs
+    const totalCost = purchasePrice + renovationCapEx + totalClosingCosts;
     const equityRequired = totalCost - effectiveLoanAmount;
 
     // --- 4. Calculate Payments & Metrics ---
@@ -120,6 +123,7 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
         totalCost,
         equityRequired,
         totalClosingCosts,
+        renovationCapEx,
 
         // Payments
         monthlyIOPayment,

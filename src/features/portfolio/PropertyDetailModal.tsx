@@ -1,15 +1,14 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React from 'react';
 import { useAppStore } from '../../store/appStore';
-import type { CalculatedProperty, ExpenseDetail } from '../../types';
+import type { CalculatedProperty } from '../../types';
 import { fmt, fmtPct } from '../../utils/formatters';
-import { X, Building2, Layers, FileText, Check, AlertTriangle, Calculator, TrendingUp, Target, DollarSign, BarChart } from '../../components/icons';
+import { X, Building2, Layers, FileText, Calculator, TrendingUp, Target, DollarSign, BarChart, Hammer } from '../../components/icons';
 import { RentRollTable } from '../property/RentRollTable';
 import { ExpensesTab } from '../property/ExpensesTab';
-import { KpiCard, KpiValue } from '../../components/common/KpiCard';
+import { RenovationTab } from '../property/RenovationTab';
+import { KpiCard } from '../../components/common/KpiCard';
 import { SectionCard } from '../../components/common/SectionCard';
-
-// --- Components ---
 
 const EditableField: React.FC<{ 
     label: string, 
@@ -59,8 +58,6 @@ const StatRow: React.FC<{ label: string, value: string | number, subValue?: stri
     </div>
 );
 
-// --- Main Modal ---
-
 const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () => void }> = ({ property, onClose }) => {
     const { assumptions, propertyOverrides, setPropertyOverrides, propertyViewTab, setPropertyViewTab } = useAppStore(state => ({
         assumptions: state.assumptions,
@@ -69,10 +66,6 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
         propertyViewTab: state.propertyViewTab,
         setPropertyViewTab: state.setPropertyViewTab,
     }));
-
-    // --- Defaults & overrides ---
-    const defaultProFormaRatio = assumptions.expenseRatio;
-    const proFormaRatio = propertyOverrides.opexPerRoom !== undefined ? propertyOverrides.opexPerRoom : defaultProFormaRatio;
 
     const handleReset = () => {
         setPropertyOverrides(property.id, {});
@@ -85,13 +78,10 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
 
     return (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center px-4 py-6">
-            {/* Backdrop */}
             <div 
                 className="absolute inset-0 bg-primary/60 backdrop-blur-sm transition-opacity" 
                 onClick={onClose}
             />
-
-            {/* Modal Window */}
             <div className="relative bg-background w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-up border border-border z-10">
                 
                 {/* Header */}
@@ -125,6 +115,12 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
                                 className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${propertyViewTab === 'expenses' ? 'bg-white shadow-sm text-primary' : 'text-secondary hover:text-primary'}`}
                             >
                                 <Calculator className="w-3 h-3" /> Expenses
+                            </button>
+                            <button 
+                                onClick={() => setPropertyViewTab('renovations')}
+                                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${propertyViewTab === 'renovations' ? 'bg-white shadow-sm text-primary' : 'text-secondary hover:text-primary'}`}
+                            >
+                                <Hammer className="w-3 h-3" /> Renovations
                             </button>
                             <button 
                                 onClick={() => setPropertyViewTab('rentroll')}
@@ -239,11 +235,11 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
                                         <div className="space-y-3">
                                             <div className="flex justify-between items-center">
                                                 <span className="text-sm text-secondary">T12 OpEx Ratio</span>
-                                                <span className="font-bold text-primary">{fmtPct((property.current.opex / property.current.gri) * 100)}</span>
+                                                <span className="font-bold text-primary">{(property.current.opex / (property.current.gri || 1) * 100).toFixed(1)}%</span>
                                             </div>
                                             <div className="flex justify-between items-center">
                                                 <span className="text-sm text-secondary">Pro Forma Ratio</span>
-                                                <span className="font-bold text-accent">{proFormaRatio}%</span>
+                                                <span className="font-bold text-accent">{(property.stabilized.opex / (property.stabilized.gri || 1) * 100).toFixed(1)}%</span>
                                             </div>
                                             <div className="flex justify-between items-center pt-2 border-t border-border">
                                                 <span className="text-sm font-medium text-primary">Exp. Savings</span>
@@ -279,15 +275,6 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
                                             type="percent"
                                             active
                                         />
-
-                                        <EditableField 
-                                            label="Pro Forma Expense Ratio" 
-                                            value={propertyOverrides.opexPerRoom ?? ''} 
-                                            onChange={val => setPropertyOverrides(property.id, { opexPerRoom: val })} 
-                                            placeholder={assumptions.expenseRatio} 
-                                            type="percent"
-                                            active
-                                        />
                                     </div>
                                     <div className="p-4 bg-accent/5 border-t border-accent/10 text-center">
                                          <div className="text-xs text-accent font-bold uppercase tracking-wider mb-1">Value Impact</div>
@@ -302,6 +289,10 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
                     
                     {propertyViewTab === 'expenses' && (
                         <ExpensesTab property={property} />
+                    )}
+                    
+                    {propertyViewTab === 'renovations' && (
+                        <RenovationTab property={property} />
                     )}
 
                     {propertyViewTab === 'rentroll' && (

@@ -3,9 +3,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '../../store/appStore';
 import type { CalculatedProperty, ExpenseDetail } from '../../types';
 import { fmt, fmtPct } from '../../utils/formatters';
-import { X, Building2, Layers, FileText, Check, AlertTriangle, Calculator, TrendingUp, Target, DollarSign, BarChart } from '../../components/icons';
+import { X, Building2, Layers, FileText, Check, AlertTriangle, Calculator, TrendingUp, Target, DollarSign, BarChart, Hammer } from '../../components/icons';
 import { RentRollTable } from '../property/RentRollTable';
 import { ExpensesTab } from '../property/ExpensesTab';
+import { RenovationTab } from '../property/RenovationTab';
 import { KpiCard, KpiValue } from '../../components/common/KpiCard';
 import { SectionCard } from '../../components/common/SectionCard';
 
@@ -70,8 +71,6 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
         setPropertyViewTab: state.setPropertyViewTab,
     }));
 
-    // --- Defaults & overrides ---
-    
     const handleReset = () => {
         setPropertyOverrides(property.id, {});
     };
@@ -123,6 +122,12 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
                                 className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${propertyViewTab === 'expenses' ? 'bg-white shadow-sm text-primary' : 'text-secondary hover:text-primary'}`}
                             >
                                 <Calculator className="w-3 h-3" /> Expenses
+                            </button>
+                            <button 
+                                onClick={() => setPropertyViewTab('renovations')}
+                                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${propertyViewTab === 'renovations' ? 'bg-white shadow-sm text-primary' : 'text-secondary hover:text-primary'}`}
+                            >
+                                <Hammer className="w-3 h-3" /> Renovations
                             </button>
                             <button 
                                 onClick={() => setPropertyViewTab('rentroll')}
@@ -291,6 +296,10 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
                     
                     {propertyViewTab === 'expenses' && (
                         <ExpensesTab property={property} />
+                    )}
+
+                    {propertyViewTab === 'renovations' && (
+                        <RenovationTab property={property} />
                     )}
 
                     {propertyViewTab === 'rentroll' && (

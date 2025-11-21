@@ -1,5 +1,5 @@
 
-import type { PropertyData, CalculatedProperty, Assumptions, PropertyOverrides, Unit, ExpenseDetail } from '../types';
+import type { PropertyData, CalculatedProperty, Assumptions, PropertyOverrides, Unit, ExpenseDetail, RenovationProfile } from '../types';
 import { RAW_RENT_ROLL } from '../data/RENT_ROLL';
 
 const ZERO_EXPENSES: ExpenseDetail = {
@@ -38,13 +38,44 @@ export const calculateProperty = (
   // Expense Detail Overrides
   const proFormaExpenseOverrides = overrides.expenses || {};
   const t12ExpenseOverrides = overrides.t12Expenses || {};
+  const renovationOverride = overrides.renovation || {};
 
   const rentLift = assumptions.rentLift || 0; // % Lift
+
+  // --- Renovation Calculation ---
+  // Check if renovation is enabled for this property (default true if overrides exist, otherwise false unless global default?)
+  // For simplicity, we'll consider it enabled if the user has touched it, or default to "All Units" if globally set.
+  // Let's default to: Enabled if manually set, otherwise assume disabled for base calc, but values are available.
+  const renoEnabled = renovationOverride.enabled !== undefined ? renovationOverride.enabled : false;
+  const renoUnits = renovationOverride.unitsToRenovate !== undefined ? renovationOverride.unitsToRenovate : property.rooms;
+  const renoCostPerUnit = renovationOverride.costPerUnit !== undefined ? renovationOverride.costPerUnit : assumptions.renovationCostPerUnit;
+  const renoPremium = renovationOverride.rentPremiumPerUnit !== undefined ? renovationOverride.rentPremiumPerUnit : assumptions.renovationRentPremium;
+  
+  const totalCapEx = renoEnabled ? renoUnits * renoCostPerUnit : 0;
+  
+  // Value Creation from Renovation: (Annual Premium / Cap Rate) - Cost
+  const annualPremium = renoUnits * renoPremium * 12;
+  const renovationValueCreation = annualPremium / (exitCapRate / 100);
+  const renovationROI = totalCapEx > 0 ? (renovationValueCreation - totalCapEx) / totalCapEx : 0;
+
+  const renovationProfile: RenovationProfile = {
+      enabled: renoEnabled,
+      unitsToRenovate: renoUnits,
+      costPerUnit: renoCostPerUnit,
+      rentPremiumPerUnit: renoPremium,
+      totalCapEx,
+      valueCreation: renovationValueCreation,
+      roi: renovationROI
+  };
 
   // --- Rent Roll Integration ---
   const rawPropertyUnits = RAW_RENT_ROLL.filter(r => r.propertyId === property.id);
   
   let units: Unit[] = [];
+
+  // We need to distribute the renovation premium across units if enabled.
+  // Strategy: Assume the "Pro Forma Rent" includes the premium if renovation is enabled.
+  const premiumPerUnitAvg = renoEnabled ? (annualPremium / 12) / property.rooms : 0;
 
   if (rawPropertyUnits.length > 0) {
     units = rawPropertyUnits.map(u => {
@@ -57,7 +88,8 @@ export const calculateProperty = (
       }
       
       const baseProForma = uOverride.proFormaRent !== undefined ? uOverride.proFormaRent : (marketRent);
-      const liftedProForma = baseProForma * (1 + (rentLift / 100));
+      // Apply global lift + Renovation Premium
+      const liftedProForma = (baseProForma * (1 + (rentLift / 100))) + premiumPerUnitAvg;
 
       return {
         unitId: u.unit,
@@ -79,7 +111,7 @@ export const calculateProperty = (
           }
           
           const baseProForma = uOverride.proFormaRent !== undefined ? uOverride.proFormaRent : marketRent;
-          const liftedProForma = baseProForma * (1 + (rentLift / 100));
+          const liftedProForma = (baseProForma * (1 + (rentLift / 100))) + premiumPerUnitAvg;
 
           units.push({
               unitId: uId,
@@ -182,6 +214,7 @@ export const calculateProperty = (
     units,
     currentExpenseDetail,
     stabilizedExpenseDetail,
-    expenseDetail: stabilizedExpenseDetail // Legacy alias
+    expenseDetail: stabilizedExpenseDetail, // Legacy alias
+    renovation: renovationProfile
   };
 };

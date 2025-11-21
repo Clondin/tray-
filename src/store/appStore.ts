@@ -5,7 +5,7 @@ import { PROPERTIES_DATA, lowRiskIds, highRiskIds, initialAllocations } from '..
 import { DEFAULT_T12_PER_UNIT } from '../data/DEFAULT_EXPENSES';
 import { calculateProperty } from '../utils/propertyCalculations';
 import { calculatePortfolio as calculatePortfolioUtil } from '../utils/portfolioCalculations';
-import type { View, PropertyTab, Assumptions, PropertyOverrides, Portfolio, CalculatedProperty, PriceAllocations, FinancingScenario, SavedFinancingScenario, InvestorReturnsScenario, UnitOverride, DashboardKPI, ExpenseDetail, DealSnapshot } from '../types';
+import type { View, PropertyTab, Assumptions, PropertyOverrides, Portfolio, CalculatedProperty, PriceAllocations, FinancingScenario, SavedFinancingScenario, InvestorReturnsScenario, UnitOverride, DashboardKPI, ExpenseDetail, DealSnapshot, RenovationProfile } from '../types';
 
 interface AppState {
   view: View;
@@ -45,6 +45,7 @@ interface AppState {
   setUnitOverride: (propertyId: number, unitId: string, override: Partial<UnitOverride>) => void;
   setExpenseOverride: (propertyId: number, expenseField: keyof ExpenseDetail, value: number) => void;
   setT12ExpenseOverride: (propertyId: number, expenseField: keyof ExpenseDetail, value: number) => void;
+  setRenovationOverride: (propertyId: number, renovation: Partial<RenovationProfile>) => void;
   
   // Deal Level
   setGlobalT12PerRoom: (field: keyof ExpenseDetail, value: number) => void;
@@ -89,6 +90,8 @@ const defaultAssumptions: Assumptions = {
   rentGrowth: 2.5,
   opexGrowth: 4.0, 
   opexPerRoom: 0, // Zeroed out to prioritize detailed line items
+  renovationCostPerUnit: 15000,
+  renovationRentPremium: 250
 };
 
 const defaultPortfolios: Portfolio[] = [
@@ -296,6 +299,26 @@ export const useAppStore = create<AppState>()(
                         [propertyId]: {
                             ...currentPropertyOverrides,
                             t12Expenses: newT12Overrides
+                        }
+                    }
+                };
+                set({ ...updatedState, ...calculateDerivedState(updatedState) });
+            },
+            setRenovationOverride: (propertyId, renovation) => {
+                const state = get();
+                const currentPropertyOverrides = state.propertyOverrides[propertyId] || {};
+                const currentRenovations = currentPropertyOverrides.renovation || {};
+                const newRenovation = {
+                    ...currentRenovations,
+                    ...renovation
+                };
+                const updatedState = {
+                    ...state,
+                    propertyOverrides: {
+                        ...state.propertyOverrides,
+                        [propertyId]: {
+                            ...currentPropertyOverrides,
+                            renovation: newRenovation
                         }
                     }
                 };

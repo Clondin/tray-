@@ -2,7 +2,7 @@
 import React from 'react';
 import type { View } from '../../types';
 import { useAppStore } from '../../store/appStore';
-import { Building2, Layers, Calculator, ClipboardCheck, User, DollarSign, Briefcase, Save } from '../icons';
+import { Building2, Layers, Calculator, ClipboardCheck, User, DollarSign, Save } from '../icons';
 
 export const TopBar: React.FC = () => {
   const { view, setView, setSnapshotModalOpen } = useAppStore(state => ({ 

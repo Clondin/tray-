@@ -1,6 +1,6 @@
 
 export type View = 'overview' | 'portfolio' | 'expenses' | 'financing' | 'audit' | 'returns';
-export type PropertyTab = 'overview' | 'rentroll' | 'expenses';
+export type PropertyTab = 'overview' | 'rentroll' | 'expenses' | 'renovations';
 
 export interface PropertyData {
   id: number;
@@ -52,6 +52,16 @@ export interface ExpenseDetail {
   other: number;
 }
 
+export interface RenovationProfile {
+  enabled: boolean;
+  unitsToRenovate: number; // Count of units
+  costPerUnit: number;
+  rentPremiumPerUnit: number; // Monthly premium
+  totalCapEx: number;
+  valueCreation: number;
+  roi: number;
+}
+
 export interface CalculatedProperty extends PropertyData {
   current: Financials;
   stabilized: Financials;
@@ -60,6 +70,7 @@ export interface CalculatedProperty extends PropertyData {
   currentExpenseDetail: ExpenseDetail; // T12 Details
   stabilizedExpenseDetail: ExpenseDetail; // Pro Forma Details
   expenseDetail: ExpenseDetail; // Legacy alias for stabilizedExpenseDetail
+  renovation: RenovationProfile;
 }
 
 export interface Portfolio {
@@ -80,6 +91,9 @@ export interface Assumptions {
   rentGrowth: number;
   opexGrowth: number;
   opexPerRoom: number; // Legacy support
+  // Global Renovation Defaults
+  renovationCostPerUnit: number;
+  renovationRentPremium: number;
 }
 
 export interface UnitOverride {
@@ -100,6 +114,7 @@ export interface PropertyOverrides {
     units?: { [unitId: string]: UnitOverride };
     expenses?: Partial<ExpenseDetail>; // Pro Forma Expense Override
     t12Expenses?: Partial<ExpenseDetail>; // T12 Expense Override
+    renovation?: Partial<RenovationProfile>;
   };
 }
 

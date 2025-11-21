@@ -7,7 +7,7 @@ export const calculatePortfolio = (portfolioId: string, portfolios: Portfolio[],
   
   const properties = calculatedProperties.filter(p => portfolio.propertyIds.includes(p.id));
   const totalRooms = properties.reduce((sum, p) => sum + p.rooms, 0);
-  if (totalRooms === 0) return { ...portfolio, propertyCount: 0, totalRooms: 0, current: {}, stabilized: {}, valuation: {} };
+  if (totalRooms === 0) return { ...portfolio, propertyCount: 0, totalRooms: 0, current: {}, stabilized: {}, valuation: {}, renovation: {} };
 
   const currentGRI = properties.reduce((sum, p) => sum + p.current.gri, 0);
   const currentOpex = properties.reduce((sum, p) => sum + p.current.opex, 0);
@@ -22,12 +22,25 @@ export const calculatePortfolio = (portfolioId: string, portfolios: Portfolio[],
   // Value Creation %
   const upside = totalAskingPrice > 0 ? ((totalStabilizedValue - totalAskingPrice) / totalAskingPrice) * 100 : 0;
 
+  // Renovation Aggregation
+  const totalRenovationCost = properties.reduce((sum, p) => sum + p.renovation.totalCapEx, 0);
+  const totalRenovationValueCreation = properties.reduce((sum, p) => sum + (p.renovation.enabled ? (p.renovation.valueCreation - p.renovation.totalCapEx) : 0), 0);
+  const totalUnitsRenovated = properties.reduce((sum, p) => sum + (p.renovation.enabled ? p.renovation.unitsToRenovate : 0), 0);
+  
+  const weightedROI = totalRenovationCost > 0 ? totalRenovationValueCreation / totalRenovationCost : 0;
+
   return {
     ...portfolio,
     propertyCount: properties.length,
     totalRooms,
     current: { gri: currentGRI, opex: currentOpex, noi: currentNOI, capRate: totalAskingPrice > 0 ? (currentNOI / totalAskingPrice) * 100 : 0, occupancy: (properties.reduce((sum, p) => sum + (p.current.occupancy * p.rooms), 0) / totalRooms) },
     stabilized: { gri: stabilizedGRI, opex: stabilizedOpex, noi: stabilizedNOI, capRate: totalAskingPrice > 0 ? (stabilizedNOI / totalAskingPrice) * 100 : 0, occupancy: stabilizedOccupancy },
-    valuation: { askingPrice: totalAskingPrice, stabilizedValue: totalStabilizedValue, pricePerRoom: totalAskingPrice / totalRooms, upside }
+    valuation: { askingPrice: totalAskingPrice, stabilizedValue: totalStabilizedValue, pricePerRoom: totalAskingPrice / totalRooms, upside },
+    renovation: {
+        totalCapEx: totalRenovationCost,
+        totalValueCreation: totalRenovationValueCreation,
+        totalUnits: totalUnitsRenovated,
+        roi: weightedROI
+    }
   };
 };

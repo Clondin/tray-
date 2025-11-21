@@ -10,8 +10,6 @@ import StressTest from './features/stress-test/StressTest';
 import FinancingCalculator from './features/financing/FinancingCalculator';
 import MathAudit from './features/audit/MathAudit';
 import InvestorReturns from './features/investor-returns/InvestorReturns';
-import LandingPage from './features/landing/LandingPage';
-import RenovationsView from './features/renovations/RenovationsView'; // Re-adding if needed or just removing from switch if completely gone. Assuming gone based on prev instructions, but safe to keep component file if exists.
 import SnapshotModal from './components/SnapshotModal';
 
 const App: React.FC = () => {
@@ -21,8 +19,6 @@ const App: React.FC = () => {
 
   const renderView = () => {
     switch (view) {
-      case 'landing':
-        return <LandingPage />;
       case 'portfolio':
         return <PortfolioBuilder />;
       case 'expenses':

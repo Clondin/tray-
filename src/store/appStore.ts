@@ -172,7 +172,7 @@ const calculateDerivedState = (state: {
 export const useAppStore = create<AppState>()(
     persist(
         (set, get) => ({
-            view: 'landing',
+            view: 'overview',
             propertyViewTab: 'overview',
             assumptions: defaultAssumptions,
             propertyOverrides: {},

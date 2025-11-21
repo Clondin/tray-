@@ -1,14 +1,16 @@
 
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '../../store/appStore';
-import type { CalculatedProperty } from '../../types';
+import type { CalculatedProperty, ExpenseDetail } from '../../types';
 import { fmt, fmtPct } from '../../utils/formatters';
-import { X, Building2, Layers, FileText, Calculator, TrendingUp, Target, DollarSign, BarChart, Hammer } from '../../components/icons';
+import { X, Building2, Layers, FileText, Check, AlertTriangle, Calculator, TrendingUp, Target, DollarSign, BarChart, Hammer } from '../../components/icons';
 import { RentRollTable } from '../property/RentRollTable';
 import { ExpensesTab } from '../property/ExpensesTab';
 import { RenovationTab } from '../property/RenovationTab';
-import { KpiCard } from '../../components/common/KpiCard';
+import { KpiCard, KpiValue } from '../../components/common/KpiCard';
 import { SectionCard } from '../../components/common/SectionCard';
+
+// --- Components ---
 
 const EditableField: React.FC<{ 
     label: string, 
@@ -58,6 +60,8 @@ const StatRow: React.FC<{ label: string, value: string | number, subValue?: stri
     </div>
 );
 
+// --- Main Modal ---
+
 const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () => void }> = ({ property, onClose }) => {
     const { assumptions, propertyOverrides, setPropertyOverrides, propertyViewTab, setPropertyViewTab } = useAppStore(state => ({
         assumptions: state.assumptions,
@@ -78,18 +82,29 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
 
     return (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center px-4 py-6">
+            {/* Backdrop */}
             <div 
                 className="absolute inset-0 bg-primary/60 backdrop-blur-sm transition-opacity" 
                 onClick={onClose}
             />
+
+            {/* Modal Window */}
             <div className="relative bg-background w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-up border border-border z-10">
                 
                 {/* Header */}
                 <header className="flex items-center justify-between px-6 py-5 border-b border-border bg-white flex-shrink-0">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-surface-subtle flex items-center justify-center text-primary border border-border">
-                            <Building2 className="w-6 h-6" />
-                        </div>
+                        {property.imageUrl ? (
+                            <img 
+                                src={property.imageUrl} 
+                                alt={property.address}
+                                className="w-24 h-16 object-cover rounded-lg border border-border shadow-sm bg-surface-subtle"
+                            />
+                        ) : (
+                            <div className="w-16 h-16 rounded-xl bg-surface-subtle flex items-center justify-center text-primary border border-border">
+                                <Building2 className="w-8 h-8" />
+                            </div>
+                        )}
                         <div>
                             <h2 className="text-xl font-bold text-primary tracking-tight">{property.address}</h2>
                             <div className="flex items-center gap-2 text-sm text-secondary mt-0.5">
@@ -290,7 +305,7 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
                     {propertyViewTab === 'expenses' && (
                         <ExpensesTab property={property} />
                     )}
-                    
+
                     {propertyViewTab === 'renovations' && (
                         <RenovationTab property={property} />
                     )}

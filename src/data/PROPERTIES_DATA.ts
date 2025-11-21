@@ -2,7 +2,7 @@
 import type { PropertyData, PriceAllocations } from '../types';
 
 export const PROPERTIES_DATA: PropertyData[] = [
-  { id: 1, address: "75 Baldwin Ave, Newark, NJ 07107", rooms: 16, occupancy: 100, city: "Newark" },
+  { id: 1, address: "75 Baldwin Ave, Newark, NJ 07107", rooms: 16, occupancy: 100, city: "Newark", imageUrl: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=800&q=80" },
   { id: 2, address: "11-13 Lincoln Park, Newark, NJ 07102", rooms: 35, occupancy: 85, city: "Newark", type: "non-class-a" },
   { id: 3, address: "350 East Main Street, Somerville, NJ 08876", rooms: 39, occupancy: 82, city: "Somerville", type: "non-class-a" },
   { id: 4, address: "677-681 Clinton Ave, Newark, NJ 07108", rooms: 30, occupancy: 57, city: "Newark" },

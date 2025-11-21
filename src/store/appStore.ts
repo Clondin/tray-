@@ -90,8 +90,8 @@ const defaultAssumptions: Assumptions = {
   rentGrowth: 2.5,
   opexGrowth: 4.0, 
   opexPerRoom: 0, // Zeroed out to prioritize detailed line items
-  renovationCostPerUnit: 1300,
-  renovationRentPremium: 0
+  renovationCostPerUnit: 15000,
+  renovationRentPremium: 250
 };
 
 const defaultPortfolios: Portfolio[] = [
@@ -460,8 +460,7 @@ export const useAppStore = create<AppState>()(
                     globalT12PerRoom: snapshot.globalT12PerRoom,
                     globalProFormaPerRoom: snapshot.globalProFormaPerRoom,
                     portfolios: snapshot.portfolios,
-                    selectedPortfolioId: snapshot.selectedPortfolioId,
-                    view: 'overview' // Redirect to overview on load
+                    selectedPortfolioId: snapshot.selectedPortfolioId
                 };
                 
                 set({ ...updatedState, ...calculateDerivedState(updatedState) });
@@ -522,3 +521,4 @@ if (initialPortfolio) {
             }
         }));
     }
+}

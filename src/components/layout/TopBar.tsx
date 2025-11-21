@@ -26,7 +26,7 @@ export const TopBar: React.FC = () => {
         <div className="glass-panel rounded-2xl px-4 h-16 flex items-center justify-between">
           
           {/* Logo Area */}
-          <div className="flex items-center gap-3 pl-2 cursor-pointer" onClick={() => setView('overview')}>
+          <div className="flex items-center gap-3 pl-2">
             <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center shadow-lg shadow-accent/20">
               <Building2 className="w-5 h-5 text-white" />
             </div>

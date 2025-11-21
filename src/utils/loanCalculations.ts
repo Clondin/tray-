@@ -26,7 +26,6 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
     const currentNOI = portfolio.current?.noi || 0;
     const stabilizedNOI = portfolio.stabilized?.noi || 0;
     const renovationCapEx = portfolio.renovation?.totalCapEx || 0;
-    const totalRooms = portfolio.totalRooms || 0;
 
     // --- 1. Calculate Max Loan from Constraints ---
     const annualDebtConstant = calculateAnnualDebtConstant(interestRate, amortizationYears);
@@ -59,22 +58,9 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
         effectiveLoanAmount = 0;
     }
 
-    // --- 3. Calculate Payments (Needed for Escrows) ---
-    const monthlyRate = interestRate / 100 / 12;
-    const monthlyPAndIPayment = effectiveLoanAmount * (annualDebtConstant / 12);
-    const monthlyIOPayment = effectiveLoanAmount * monthlyRate;
-    
-    let annualDebtService = 0;
-    // For DSCR and Escrow calculations, we usually look at the permanent debt service (P&I) or Year 1 actual.
-    // If IO period is significant, lenders might size on IO, but standard is P&I constant.
-    // We'll use the full P&I constant for conservative sizing and escrow estimation.
-    annualDebtService = monthlyPAndIPayment * 12;
-
-    // --- 4. Calculate Calculated Costs (Fixed Rules) ---
+    // --- 3. Calculate Costs & Equity ---
+    // Use absolute costs from input. Origination is % of loan.
     const originationFee = effectiveLoanAmount * (costs.origination / 100);
-    const acquisitionFee = purchasePrice * 0.01; // Fixed: 1% of PP
-    const reserves = totalRooms * 1000; // Fixed: $1k per unit
-    const escrows = annualDebtService * 0.5; // Fixed: 50% of Year 1 Debt Service
 
     const totalClosingCosts = 
         (costs.legal || 0) +
@@ -82,9 +68,8 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
         (costs.inspection || 0) +
         (costs.appraisal || 0) +
         (costs.mortgageFees || 0) +
-        acquisitionFee +
-        reserves +
-        escrows +
+        (costs.acquisitionFee || 0) +
+        (costs.reserves || 0) +
         (costs.thirdParty || 0) +
         (costs.misc || 0) +
         originationFee;
@@ -92,6 +77,20 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
     // Total Project Cost includes Purchase Price + Renovation CapEx + Closing Costs
     const totalCost = purchasePrice + renovationCapEx + totalClosingCosts;
     const equityRequired = totalCost - effectiveLoanAmount;
+
+    // --- 4. Calculate Payments & Metrics ---
+    const monthlyRate = interestRate / 100 / 12;
+    const monthlyPAndIPayment = effectiveLoanAmount * (annualDebtConstant / 12);
+    const monthlyIOPayment = effectiveLoanAmount * monthlyRate;
+    
+    let annualDebtService = 0;
+    if (ioPeriodMonths >= 12) {
+        annualDebtService = monthlyIOPayment * 12;
+    } else if (ioPeriodMonths > 0) {
+        annualDebtService = (monthlyIOPayment * ioPeriodMonths) + (monthlyPAndIPayment * (12 - ioPeriodMonths));
+    } else {
+        annualDebtService = monthlyPAndIPayment * 12;
+    }
 
     const dscrCurrent = annualDebtService > 0 ? currentNOI / annualDebtService : Infinity;
     const dscrStabilized = annualDebtService > 0 ? stabilizedNOI / annualDebtService : Infinity;
@@ -125,14 +124,6 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
         equityRequired,
         totalClosingCosts,
         renovationCapEx,
-        
-        // Specific Calculated Costs for UI
-        calculatedCosts: {
-            acquisitionFee,
-            reserves,
-            escrows,
-            originationFee
-        },
 
         // Payments
         monthlyIOPayment,

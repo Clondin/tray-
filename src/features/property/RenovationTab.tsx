@@ -65,7 +65,6 @@ export const RenovationTab: React.FC<{ property: CalculatedProperty }> = ({ prop
     };
 
     const isEnabled = property.renovation.enabled;
-    const vacantCount = property.units.filter(u => u.status === 'Vacant').length;
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
@@ -82,7 +81,7 @@ export const RenovationTab: React.FC<{ property: CalculatedProperty }> = ({ prop
                                 </div>
                                 <div>
                                     <div className="text-sm font-bold text-primary">Value-Add Renovation</div>
-                                    <div className="text-xs text-secondary">Enable to set Pro Forma rent to Market Rate.</div>
+                                    <div className="text-xs text-secondary">Enable to apply CapEx and rent premiums.</div>
                                 </div>
                             </div>
                             <button 
@@ -100,13 +99,10 @@ export const RenovationTab: React.FC<{ property: CalculatedProperty }> = ({ prop
                                         label="Scope (Units)" 
                                         value={property.renovation.unitsToRenovate} 
                                         onChange={v => updateRenovation('unitsToRenovate', Math.min(v, property.rooms))} 
-                                        placeholder={vacantCount > 0 ? vacantCount : property.rooms}
+                                        placeholder={property.rooms}
                                         active
                                     />
-                                    <div className="flex justify-between text-[10px] text-muted mt-1 ml-1">
-                                        <span>Vacant Units: {vacantCount}</span>
-                                        <span>Total: {property.rooms}</span>
-                                    </div>
+                                    <div className="text-[10px] text-muted mt-1 ml-1">Max: {property.rooms} Units</div>
                                 </div>
                                 <div className="hidden md:block"></div>
 
@@ -119,7 +115,7 @@ export const RenovationTab: React.FC<{ property: CalculatedProperty }> = ({ prop
                                     active
                                 />
                                 <EditableField 
-                                    label="Premium ABOVE Market" 
+                                    label="Rent Premium / Unit" 
                                     value={property.renovation.rentPremiumPerUnit} 
                                     onChange={v => updateRenovation('rentPremiumPerUnit', v)} 
                                     placeholder={assumptions.renovationRentPremium}
@@ -140,8 +136,8 @@ export const RenovationTab: React.FC<{ property: CalculatedProperty }> = ({ prop
                     <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3 items-start">
                         <AlertTriangle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                         <div className="text-xs text-blue-800 leading-relaxed">
-                            <strong>Plan Logic:</strong> Enabling this plan assumes renovated units achieve the full <strong>Market Rent</strong> ({fmt(assumptions.marketRent)}/mo). 
-                            Any value entered in "Premium ABOVE Market" is added on top of that base.
+                            <strong>Impact on Underwriting:</strong> Activating this plan increases the Total Project Cost by <strong>{fmt(property.renovation.totalCapEx)}</strong>. 
+                            The projected premiums are added to the Pro Forma Rent Roll, increasing Stabilized NOI and Valuation.
                         </div>
                     </div>
                 )}
@@ -165,17 +161,26 @@ export const RenovationTab: React.FC<{ property: CalculatedProperty }> = ({ prop
                         </div>
 
                         <div className="bg-white rounded-xl border border-border p-5 space-y-2">
-                            {/* 
-                                Note: The `valueCreation` stored in property.renovation is calculated in propertyCalculations.ts
-                                based on the lift from Current Rent to Market Rent (since we enabled renos).
-                            */}
                             <StatRow 
-                                label="Value Created" 
-                                value={fmt(property.renovation.valueCreation)} 
+                                label="Monthly Rent Lift" 
+                                value={fmt(property.renovation.unitsToRenovate * property.renovation.rentPremiumPerUnit)} 
+                            />
+                             <StatRow 
+                                label="Annual NOI Increase" 
+                                value={fmt(property.renovation.unitsToRenovate * property.renovation.rentPremiumPerUnit * 12)} 
                                 highlight
                             />
-                            <div className="py-2 text-xs text-muted leading-relaxed">
-                                Represents the incremental value generated by lifting in-place rents to Market Rent (plus premiums), capitalized at the Exit Cap Rate ({fmtPct(assumptions.capRate)}).
+                            <div className="py-2">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <TrendingUp className="w-4 h-4 text-accent" />
+                                    <span className="text-xs font-bold text-accent uppercase">Value Created</span>
+                                </div>
+                                <div className="text-3xl font-bold text-primary tracking-tight">
+                                    +{fmt(property.renovation.valueCreation)}
+                                </div>
+                                <div className="text-xs text-muted mt-1">
+                                    @ {fmtPct(assumptions.capRate)} Exit Cap Rate
+                                </div>
                             </div>
                              <StatRow 
                                 label="Net Profit (Value - Cost)" 

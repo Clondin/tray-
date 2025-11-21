@@ -5,95 +5,55 @@ import type { FinancingScenario } from '../../../types';
 import { fmt } from '../../../utils/formatters';
 import { SectionCard } from '../../../components/common/SectionCard';
 
-// Helper component for the "Box" style inputs seen in the requested design
-const BoxInput: React.FC<{
-    label: string;
-    value: number;
-    onChange: (val: number) => void;
-    unit?: string;
-    step?: number;
-    min?: number;
-    max?: number;
-    disabled?: boolean;
-}> = ({ label, value, onChange, unit, step = 1, min, max, disabled }) => (
-    <div className={`bg-surface-subtle rounded-lg px-4 py-3 border border-border hover:border-accent/50 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent/20 transition-all ${disabled ? 'opacity-60' : ''}`}>
-        <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1">{label}</label>
-        <div className="flex items-baseline justify-between">
-            <input 
-                type="number"
-                value={value}
-                onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-                step={step}
-                min={min}
-                max={max}
-                disabled={disabled}
-                className="bg-transparent border-none p-0 text-lg font-bold text-primary focus:ring-0 w-full"
-            />
-            {unit && <span className="text-sm font-medium text-muted ml-2">{unit}</span>}
-        </div>
-    </div>
-);
+interface InputProps<T> {
+  label: string;
+  value: T;
+  onChange: (value: T) => void;
+  type?: 'number' | 'select';
+  prefix?: string;
+  suffix?: string;
+  options?: { value: string | number; label: string }[];
+  step?: number;
+  disabled?: boolean;
+}
 
-// Specific Slider component for the LTV bar
-const LtvSlider: React.FC<{ value: number, onChange: (val: number) => void, disabled?: boolean }> = ({ value, onChange, disabled }) => (
-    <div className={`bg-surface-subtle rounded-xl p-4 border border-border ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-        <div className="flex justify-between items-center mb-3">
-            <label className="text-sm font-bold text-secondary">Target LTV</label>
-            <span className="text-lg font-bold text-primary">{value.toFixed(0)}%</span>
+function FinanceInput<T extends string | number>({ label, value, onChange, type = 'number', prefix, suffix, options, step, disabled }: InputProps<T>) {
+    return (
+        <div>
+            <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">{label}</label>
+            <div className="relative">
+                {prefix && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none text-small">{prefix}</span>}
+                 {type === 'number' ? (
+                    <input
+                        type="number"
+                        value={value}
+                        step={step || 'any'}
+                        onChange={e => onChange(parseFloat(e.target.value) as T)}
+                        disabled={disabled}
+                        className={`form-input w-full text-sm font-medium ${prefix ? 'pl-7' : ''} ${suffix ? 'pr-8' : ''} ${disabled ? 'bg-bg-surface-soft cursor-not-allowed opacity-60' : ''}`}
+                    />
+                 ) : (
+                    <select
+                        value={value}
+                        onChange={e => onChange(e.target.value as T)}
+                        disabled={disabled}
+                        className="form-select w-full text-sm font-medium"
+                    >
+                        {options?.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+                 )}
+                {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none text-small">{suffix}</span>}
+            </div>
         </div>
-        <input 
-            type="range" 
-            min="50" 
-            max="90" 
-            step="5" 
-            value={value} 
-            onChange={(e) => onChange(parseFloat(e.target.value))}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-accent"
-        />
-    </div>
-);
+    );
+}
 
-// Standard financing input for the Right Column (Closing Costs) reuse
-const FinanceInput: React.FC<{
-    label: string;
-    value: string | number;
-    onChange?: (val: any) => void;
-    prefix?: string;
-    suffix?: string;
-    calculatedValueDisplay?: string;
-    disabled?: boolean;
-}> = ({ label, value, onChange, prefix, suffix, calculatedValueDisplay, disabled }) => (
-    <div>
-        <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">{label}</label>
-        <div className="relative">
-            {prefix && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs">{prefix}</span>}
-            <input
-                type="text"
-                value={value}
-                onChange={e => onChange && onChange(e.target.value)}
-                disabled={disabled || !!calculatedValueDisplay}
-                className={`
-                    form-input w-full text-sm font-medium 
-                    ${prefix ? 'pl-7' : ''} ${suffix ? 'pr-8' : ''} 
-                    ${disabled || calculatedValueDisplay ? 'bg-surface-subtle cursor-not-allowed text-muted' : ''}
-                `}
-            />
-            {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-xs">{suffix}</span>}
-            
-            {calculatedValueDisplay && (
-                <div className="absolute inset-0 bg-surface-subtle border border-border rounded-lg flex items-center justify-between px-3 text-sm text-primary font-semibold cursor-not-allowed">
-                    <span>{value}</span>
-                    <span className="text-[10px] uppercase tracking-wider text-accent font-bold">{calculatedValueDisplay}</span>
-                </div>
-            )}
-        </div>
-    </div>
-);
-
-const FinancingInputs: React.FC<{ loanCalcs: any }> = ({ loanCalcs }) => {
-    const { financingScenario, setFinancingScenario } = useAppStore(state => ({
+const FinancingInputs: React.FC<{ activeTab: 'current' | 'stabilized', setActiveTab: (tab: 'current' | 'stabilized') => void }> = ({ activeTab, setActiveTab }) => {
+    const { financingScenario, setFinancingScenario, assumptions, setAssumptions } = useAppStore(state => ({
         financingScenario: state.financingScenario,
         setFinancingScenario: state.setFinancingScenario,
+        assumptions: state.assumptions,
+        setAssumptions: state.setAssumptions
     }));
 
     const handleInputChange = (key: keyof FinancingScenario, value: any) => {
@@ -105,181 +65,135 @@ const FinancingInputs: React.FC<{ loanCalcs: any }> = ({ loanCalcs }) => {
     };
     
     const isManualSizing = financingScenario.sizingMethod === 'manual';
-    const isLtvActive = financingScenario.sizingMethod === 'ltv' || financingScenario.sizingMethod === 'lower_dscr_ltv';
 
-    // Calculated values from the debt engine
-    const calcAcqFee = loanCalcs?.calculatedCosts?.acquisitionFee;
-    const calcReserves = loanCalcs?.calculatedCosts?.reserves;
-    const calcEscrows = loanCalcs?.calculatedCosts?.escrows;
-    const calcOriginationDollar = loanCalcs?.calculatedCosts?.originationFee;
+    // Calculate total closing costs (excluding origination for raw sum display)
+    const rawClosingSum = 
+        (financingScenario.costs.legal || 0) +
+        (financingScenario.costs.title || 0) +
+        (financingScenario.costs.inspection || 0) +
+        (financingScenario.costs.appraisal || 0) +
+        (financingScenario.costs.mortgageFees || 0) +
+        (financingScenario.costs.acquisitionFee || 0) +
+        (financingScenario.costs.reserves || 0) +
+        (financingScenario.costs.thirdParty || 0) +
+        (financingScenario.costs.misc || 0);
 
     return (
-        <>
-            {/* Left Column: Loan Structure - Designed to match the specific user request */}
-            <SectionCard title="2. Loan Structure" className="bg-white h-full border-t-4 border-t-accent">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+            
+            {/* Left Column: Loan Structure */}
+            <SectionCard title="Loan Structure & Terms" className="h-full">
                 <div className="space-y-6">
-                    
-                    {/* Sizing Method Selector - Kept simple at top */}
-                    <div>
-                        <select 
-                            value={financingScenario.sizingMethod} 
-                            onChange={e => handleInputChange('sizingMethod', e.target.value)} 
-                            className="form-select w-full text-sm font-medium border-border bg-surface-subtle"
-                        >
-                            <option value="lower_dscr_ltv">Strategy: Lower of DSCR & LTV</option>
-                            <option value="dscr">Strategy: DSCR Only</option>
-                            <option value="ltv">Strategy: LTV Only</option>
-                            <option value="manual">Strategy: Manual Entry</option>
-                        </select>
-                    </div>
-
-                    {/* Target LTV Slider - Prominent */}
-                    <LtvSlider 
-                        value={financingScenario.targetLTV} 
-                        onChange={v => handleInputChange('targetLTV', v)}
-                        disabled={isManualSizing}
-                    />
-
-                    {/* 2x2 Grid for Core Terms */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <BoxInput 
-                            label="Interest Rate" 
-                            value={financingScenario.interestRate} 
-                            onChange={v => handleInputChange('interestRate', v)}
-                            unit="%"
-                            step={0.125}
+                    {/* Sizing Strategy */}
+                    <div className="p-4 bg-surface-subtle rounded-lg border border-border-subtle space-y-4">
+                         <FinanceInput
+                            label="Sizing Method"
+                            type="select"
+                            value={financingScenario.sizingMethod}
+                            onChange={v => handleInputChange('sizingMethod', v)}
+                            options={[
+                                { value: 'lower_dscr_ltv', label: 'Lower of DSCR & LTV' },
+                                { value: 'dscr', label: 'Size by DSCR' },
+                                { value: 'ltv', label: 'Size by LTV' },
+                                { value: 'manual', label: 'Manual Loan Amount' },
+                            ]}
                         />
-                        <BoxInput 
-                            label="Amortization" 
-                            value={financingScenario.amortizationYears} 
-                            onChange={v => handleInputChange('amortizationYears', v)}
-                            unit="yrs"
-                        />
-                        <BoxInput 
-                            label="Loan Term" 
-                            value={financingScenario.termYears} 
-                            onChange={v => handleInputChange('termYears', v)}
-                            unit="yrs"
-                        />
-                        <BoxInput 
-                            label="I/O Period" 
-                            value={financingScenario.ioPeriodMonths} 
-                            onChange={v => handleInputChange('ioPeriodMonths', v)}
-                            unit="mo"
-                        />
-                    </div>
-
-                    {/* DSCR Constraint - Full Width Bottom */}
-                    <div className={`bg-surface-subtle rounded-lg px-4 py-3 border border-border ${isManualSizing ? 'opacity-50' : ''}`}>
-                        <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1">Min DSCR Constraint</label>
-                        <input 
-                            type="number"
-                            value={financingScenario.targetDSCR}
-                            onChange={(e) => handleInputChange('targetDSCR', parseFloat(e.target.value) || 0)}
-                            step={0.05}
-                            disabled={isManualSizing}
-                            className="bg-transparent border-none p-0 text-lg font-bold text-primary focus:ring-0 w-full"
-                        />
-                    </div>
-
-                    {/* Manual Loan Amount (Only shows if Manual mode selected) */}
-                    {isManualSizing && (
-                        <div className="bg-accent/5 border border-accent/20 rounded-lg px-4 py-3 animate-fade-in">
-                            <label className="block text-[10px] font-bold text-accent uppercase tracking-wider mb-1">Manual Loan Amount</label>
-                            <div className="flex items-center">
-                                <span className="text-lg font-bold text-accent mr-1">$</span>
-                                <input 
-                                    type="number"
-                                    value={financingScenario.manualLoanAmount}
-                                    onChange={(e) => handleInputChange('manualLoanAmount', parseFloat(e.target.value) || 0)}
-                                    className="bg-transparent border-none p-0 text-lg font-bold text-accent focus:ring-0 w-full"
-                                />
-                            </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <FinanceInput label="Target DSCR" value={financingScenario.targetDSCR} onChange={v => handleInputChange('targetDSCR', v)} step={0.05} disabled={isManualSizing} />
+                            <FinanceInput label="Target LTV" value={financingScenario.targetLTV} onChange={v => handleInputChange('targetLTV', v)} suffix="%" disabled={isManualSizing} />
                         </div>
-                    )}
+                        <FinanceInput label="Manual Amount" value={financingScenario.manualLoanAmount} onChange={v => handleInputChange('manualLoanAmount', v)} prefix="$" disabled={!isManualSizing} />
+                    </div>
 
+                    {/* Terms */}
+                    <div className="space-y-4">
+                         <h4 className="text-xs font-bold text-primary border-b border-border-subtle pb-2">Terms & Rates</h4>
+                         <div className="grid grid-cols-2 gap-4">
+                            <FinanceInput label="Interest Rate" value={financingScenario.interestRate} onChange={v => handleInputChange('interestRate', v)} suffix="%" step={0.125} />
+                            <FinanceInput label="I/O Period" value={financingScenario.ioPeriodMonths} onChange={v => handleInputChange('ioPeriodMonths', v)} suffix="months" />
+                            <FinanceInput 
+                                label="Amortization" 
+                                type="select" 
+                                value={financingScenario.amortizationYears} 
+                                onChange={v => handleInputChange('amortizationYears', Number(v))}
+                                options={[{value: 20, label: '20 Years'}, {value: 25, label: '25 Years'}, {value: 30, label: '30 Years'}]}
+                            />
+                            <FinanceInput 
+                                label="Term"
+                                type="select"
+                                value={financingScenario.termYears}
+                                onChange={v => handleInputChange('termYears', Number(v))}
+                                options={[{value: 3, label: '3 Years'}, {value: 5, label: '5 Years'}, {value: 7, label: '7 Years'}, {value: 10, label: '10 Years'}]}
+                            />
+                        </div>
+                    </div>
+
+                     {/* Growth Rates */}
+                    <div className="p-4 bg-surface-subtle rounded-lg border border-border-subtle space-y-3">
+                        <h4 className="text-xs font-bold text-secondary uppercase">Pro Forma Assumptions</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            <FinanceInput 
+                                label="Rent Growth" 
+                                value={assumptions.rentGrowth} 
+                                onChange={v => setAssumptions({ rentGrowth: v })} 
+                                suffix="%" 
+                                step={0.5} 
+                            />
+                            <FinanceInput 
+                                label="OpEx Growth" 
+                                value={assumptions.opexGrowth} 
+                                onChange={v => setAssumptions({ opexGrowth: v })} 
+                                suffix="%" 
+                                step={0.5} 
+                            />
+                        </div>
+                    </div>
                 </div>
             </SectionCard>
 
-            {/* Right Column: Closing Costs (Preserved new logic) */}
+            {/* Right Column: Closing Costs */}
             <SectionCard 
-                title="3. Closing Costs" 
-                action={<span className="text-xs font-bold text-primary bg-surface-subtle px-2 py-1 rounded border border-border">Total: {fmt(loanCalcs?.totalClosingCosts || 0)}</span>}
-                className="bg-white h-full border-t-4 border-t-secondary"
+                title="Transaction Costs" 
+                action={<span className="text-sm font-bold text-primary bg-surface-subtle px-2 py-1 rounded border border-border">{fmt(rawClosingSum)} <span className="text-xs font-normal text-muted">+ Orig.</span></span>}
+                className="h-full"
             >
-                <div className="space-y-4">
+                <div className="space-y-6">
+                    
                     {/* Lender Fees */}
                     <div>
-                         <h4 className="text-[10px] font-bold text-secondary border-b border-border-subtle pb-1 mb-3 uppercase">Financing Fees</h4>
-                         <div className="grid grid-cols-2 gap-3">
-                            {/* Origination */}
-                            <div>
-                                <label className="block text-[10px] font-bold text-secondary uppercase tracking-wider mb-1.5">Origination</label>
-                                <div className="relative flex items-center">
-                                    <input
-                                        type="number"
-                                        step={0.25}
-                                        value={financingScenario.costs.origination}
-                                        onChange={e => handleCostChange('origination', parseFloat(e.target.value))}
-                                        className="form-input w-16 text-sm font-medium pr-1 mr-2"
-                                    />
-                                    <span className="text-xs text-muted mr-2">%</span>
-                                    <span className="text-sm font-bold text-primary bg-surface-subtle px-2 py-1 rounded flex-1 text-right border border-border truncate">
-                                        {fmt(calcOriginationDollar)}
-                                    </span>
-                                </div>
-                            </div>
-                             <FinanceInput 
-                                label="Mortgage Fees" 
-                                value={financingScenario.costs.mortgageFees} 
-                                onChange={v => handleCostChange('mortgageFees', parseFloat(v))} 
-                                prefix="$" 
-                            />
-                        </div>
-                    </div>
-
-                    {/* Deal Level Costs */}
-                    <div>
-                        <h4 className="text-[10px] font-bold text-secondary border-b border-border-subtle pb-1 mb-3 uppercase">Deal Costs (Fixed)</h4>
-                        <div className="grid grid-cols-2 gap-3">
-                             <FinanceInput 
-                                label="Acquisition Fee" 
-                                value={fmt(calcAcqFee)} 
-                                calculatedValueDisplay="1.0% of PP"
-                            />
-                             <FinanceInput 
-                                label="Reserves" 
-                                value={fmt(calcReserves)} 
-                                calculatedValueDisplay="$1k/Unit"
-                            />
-                             <FinanceInput 
-                                label="Escrows" 
-                                value={fmt(calcEscrows)} 
-                                calculatedValueDisplay="6 Mo Debt Svc"
-                            />
-                             <FinanceInput 
-                                label="Other / Misc" 
-                                value={financingScenario.costs.misc} 
-                                onChange={v => handleCostChange('misc', parseFloat(v))} 
-                                prefix="$" 
-                            />
+                         <h4 className="text-xs font-bold text-primary border-b border-border-subtle pb-2 mb-4">Lender & Financing Fees</h4>
+                         <div className="grid grid-cols-2 gap-4">
+                            <FinanceInput label="Origination" value={financingScenario.costs.origination} onChange={v => handleCostChange('origination', v)} suffix="%" step={0.25} />
+                             <FinanceInput label="Mortgage Fees" value={financingScenario.costs.mortgageFees} onChange={v => handleCostChange('mortgageFees', v)} prefix="$" />
                         </div>
                     </div>
 
                     {/* Third Party */}
                     <div>
-                        <h4 className="text-[10px] font-bold text-secondary border-b border-border-subtle pb-1 mb-3 uppercase">Third Party Reports</h4>
-                        <div className="grid grid-cols-2 gap-3">
-                            <FinanceInput label="Legal" value={financingScenario.costs.legal} onChange={v => handleCostChange('legal', parseFloat(v))} prefix="$" />
-                            <FinanceInput label="Title" value={financingScenario.costs.title} onChange={v => handleCostChange('title', parseFloat(v))} prefix="$" />
-                            <FinanceInput label="Inspection" value={financingScenario.costs.inspection} onChange={v => handleCostChange('inspection', parseFloat(v))} prefix="$" />
-                            <FinanceInput label="Appraisal" value={financingScenario.costs.appraisal} onChange={v => handleCostChange('appraisal', parseFloat(v))} prefix="$" />
+                        <h4 className="text-xs font-bold text-primary border-b border-border-subtle pb-2 mb-4">Third Party Reports</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            <FinanceInput label="Legal" value={financingScenario.costs.legal} onChange={v => handleCostChange('legal', v)} prefix="$" />
+                            <FinanceInput label="Title" value={financingScenario.costs.title} onChange={v => handleCostChange('title', v)} prefix="$" />
+                            <FinanceInput label="Inspection" value={financingScenario.costs.inspection} onChange={v => handleCostChange('inspection', v)} prefix="$" />
+                            <FinanceInput label="Appraisal" value={financingScenario.costs.appraisal} onChange={v => handleCostChange('appraisal', v)} prefix="$" />
+                        </div>
+                    </div>
+
+                    {/* Acquisition & Reserves */}
+                    <div>
+                        <h4 className="text-xs font-bold text-primary border-b border-border-subtle pb-2 mb-4">Acquisition & Reserves</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                             <FinanceInput label="Acquisition Fee" value={financingScenario.costs.acquisitionFee} onChange={v => handleCostChange('acquisitionFee', v)} prefix="$" />
+                             <FinanceInput label="CapEx Reserves" value={financingScenario.costs.reserves} onChange={v => handleCostChange('reserves', v)} prefix="$" />
+                             <div className="col-span-2">
+                                <FinanceInput label="Other / Misc" value={financingScenario.costs.misc} onChange={v => handleCostChange('misc', v)} prefix="$" />
+                             </div>
                         </div>
                     </div>
 
                 </div>
             </SectionCard>
-        </>
+        </div>
     );
 };
 

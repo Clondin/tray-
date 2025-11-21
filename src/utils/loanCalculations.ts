@@ -67,7 +67,9 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
     const monthlyPAndIPayment = effectiveLoanAmount * (annualDebtConstant / 12);
     const monthlyIOPayment = effectiveLoanAmount * monthlyRate;
 
-    // Logic: If we have an IO period, reserves are based on IO payment. Otherwise P&I.
+    // Logic: If IO period exists, reserve calculation uses IO payment? 
+    // Usually reserves cover "Debt Service". If we are in IO, debt service is lower. 
+    // The user asked: "update reserves logice that it can be from interest only if there is an interest only phase"
     const monthlyPaymentForReserves = ioPeriodMonths > 0 ? monthlyIOPayment : monthlyPAndIPayment;
     const autoReserves = monthlyPaymentForReserves * 6;
 

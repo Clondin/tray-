@@ -212,8 +212,12 @@ const PortfolioBuilder: React.FC = () => {
                                 </DataTableCell>
                                 <DataTableCell>
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded bg-surface-subtle flex items-center justify-center text-secondary flex-shrink-0">
-                                            <Building2 className="w-4 h-4" />
+                                        <div className="w-8 h-8 rounded bg-surface-subtle flex items-center justify-center text-secondary flex-shrink-0 overflow-hidden">
+                                            {prop.imageUrl ? (
+                                                <img src={prop.imageUrl} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <Building2 className="w-4 h-4" />
+                                            )}
                                         </div>
                                         <div>
                                             <div className="font-semibold text-primary text-sm">{prop.address.split(',')[0]}</div>

@@ -101,20 +101,21 @@ export const calculateProperty = (
   // Logic: Automatically factor in vacant units.
   // Defaults: Units = Vacant Count, Cost = 1300, Premium = 0.
   
+  // Use vacant count if no override provided
   const renoUnits = renovationOverride.unitsToRenovate !== undefined ? renovationOverride.unitsToRenovate : vacantCount;
   // Default cost 1300 for vacant prep (turnover cost)
   const renoCostPerUnit = renovationOverride.costPerUnit !== undefined ? renovationOverride.costPerUnit : 1300;
   // Default premium 0 (just bringing to market standard)
   const renoPremium = renovationOverride.rentPremiumPerUnit !== undefined ? renovationOverride.rentPremiumPerUnit : 0;
   
-  // Automatically enabled if there are units to renovate
+  // Always calculate if units > 0, remove explicit 'enabled' toggle
   const renoEnabled = renoUnits > 0;
   
   const totalCapEx = renoUnits * renoCostPerUnit;
   
   // Value Creation from Renovation: (Annual Premium / Cap Rate) - Cost
   const annualPremium = renoUnits * renoPremium * 12;
-  const renovationValueCreation = annualPremium / (exitCapRate / 100);
+  const renovationValueCreation = exitCapRate > 0 ? annualPremium / (exitCapRate / 100) : 0;
   const renovationROI = totalCapEx > 0 ? (renovationValueCreation - totalCapEx) / totalCapEx : 0;
 
   const renovationProfile: RenovationProfile = {
@@ -221,7 +222,7 @@ export const calculateProperty = (
 
   return {
     ...property,
-    imageUrl, // Updated
+    imageUrl, // Use the determined image URL
     current: { occupiedRooms: currentOccupiedRooms, occupancy: currentOcc, gri: currentGRI, opex: currentOpex, noi: currentNOI, capRate: currentCapRate },
     stabilized: { occupiedRooms: stabilizedOccupiedRooms, occupancy: stabilizedOcc, gri: stabilizedGRI, opex: stabilizedOpex, noi: stabilizedNOI, capRate: stabilizedCapRate },
     valuation: { askingPrice, stabilizedValue, pricePerRoom: askingPrice / property.rooms, upside },

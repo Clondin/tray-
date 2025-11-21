@@ -1,5 +1,5 @@
 
-export type View = 'overview' | 'portfolio' | 'expenses' | 'financing' | 'audit' | 'returns';
+export type View = 'landing' | 'overview' | 'portfolio' | 'expenses' | 'financing' | 'audit' | 'returns';
 export type PropertyTab = 'overview' | 'rentroll' | 'expenses' | 'renovations';
 
 export interface PropertyData {

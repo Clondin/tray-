@@ -176,20 +176,21 @@ const Overview: React.FC = () => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isAssumptionsOpen, setIsAssumptionsOpen] = useState(false);
 
-  // Calculate Returns for KPI display
-  const returnMetrics = useMemo(() => {
+  // Calculate Debt & Returns for KPI display
+  const loanCalcs = useMemo(() => {
     if (!currentPortfolio) return null;
-    const loanCalcs = runDebtSizingEngine(financingScenario, currentPortfolio);
-    if (!loanCalcs) return null;
+    return runDebtSizingEngine(financingScenario, currentPortfolio);
+  }, [currentPortfolio, financingScenario]);
+
+  const returnMetrics = useMemo(() => {
+    if (!currentPortfolio || !loanCalcs) return null;
     const returns = calculateInvestorReturns(currentPortfolio, loanCalcs, assumptions, investorReturnsScenario, financingScenario);
     return returns ? returns.lp : null;
-  }, [currentPortfolio, financingScenario, assumptions, investorReturnsScenario]);
+  }, [currentPortfolio, loanCalcs, assumptions, investorReturnsScenario, financingScenario]);
 
   // Generate and download executive summary
   const handleDownloadSummary = () => {
-      if (!currentPortfolio) return;
-      
-      const loanCalcs = runDebtSizingEngine(financingScenario, currentPortfolio);
+      if (!currentPortfolio || !loanCalcs) return;
       
       // Create a beautiful HTML print view
       const printContent = `
@@ -227,7 +228,7 @@ const Overview: React.FC = () => {
                 <div>
                     <h2>Valuation</h2>
                     <div class="row"><span class="label">Purchase Price</span><span class="value">${fmt(currentPortfolio.valuation.askingPrice)}</span></div>
-                    <div class="row"><span class="label">Price Per Unit</span><span class="value">${fmt(currentPortfolio.valuation.pricePerRoom)}</span></div>
+                    <div class="row"><span class="label">Total Project Cost</span><span class="value">${fmt(loanCalcs?.totalCost)}</span></div>
                     <div class="row"><span class="label">Stabilized Value</span><span class="value">${fmt(currentPortfolio.valuation.stabilizedValue)}</span></div>
                     <div class="row"><span class="label">Upside Potential</span><span class="value highlight">${fmtPct(currentPortfolio.valuation.upside)}</span></div>
                 </div>
@@ -273,12 +274,22 @@ const Overview: React.FC = () => {
 
   if (!currentPortfolio) return null;
   
-  const kpiData: Record<DashboardKPI, { label: string, value: number, format: (v: number) => string, subValue?: string, icon?: React.ReactNode }> = {
+  // Prepare Data for KPI Cards
+  const purchasePriceVal = currentPortfolio.valuation?.askingPrice || 0;
+  const totalProjectCost = loanCalcs?.totalCost || 0;
+
+  const kpiData: Record<DashboardKPI, { label: string, value: number | React.ReactNode, format: (v: number) => string, subValue?: string | React.ReactNode, icon?: React.ReactNode }> = {
       purchasePrice: { 
           label: "Purchase Price", 
-          value: currentPortfolio.valuation?.askingPrice, 
+          value: purchasePriceVal, 
           format: fmt, 
-          subValue: `${currentPortfolio.propertyCount} Properties`,
+          // Show Total Cost as Sub Value
+          subValue: (
+            <span className="flex flex-col text-xs text-muted">
+                <span>Acquisition Only</span>
+                <span className="font-semibold text-secondary mt-0.5">All-in: {fmt(totalProjectCost)}</span>
+            </span>
+          ),
           icon: <Building2 className="w-5 h-5" /> 
       },
       entryCap: { 
@@ -384,8 +395,12 @@ const Overview: React.FC = () => {
                 <KpiCard
                     key={key}
                     label={data.label}
-                    value={<KpiValue value={data.value} formatter={data.format} />}
-                    subValue={data.subValue}
+                    value={
+                        typeof data.value === 'number' 
+                        ? <KpiValue value={data.value} formatter={data.format} /> 
+                        : data.value
+                    }
+                    subValue={data.subValue as string} // Casting due to ReactNode complexity in prop
                     icon={data.icon}
                     highlight={key === 'purchasePrice'} // Highlight main price card
                 />

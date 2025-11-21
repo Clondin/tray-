@@ -90,8 +90,8 @@ const defaultAssumptions: Assumptions = {
   rentGrowth: 2.5,
   opexGrowth: 4.0, 
   opexPerRoom: 0, // Zeroed out to prioritize detailed line items
-  renovationCostPerUnit: 15000,
-  renovationRentPremium: 250
+  renovationCostPerUnit: 1300,
+  renovationRentPremium: 0
 };
 
 const defaultPortfolios: Portfolio[] = [
@@ -172,7 +172,7 @@ const calculateDerivedState = (state: {
 export const useAppStore = create<AppState>()(
     persist(
         (set, get) => ({
-            view: 'overview',
+            view: 'landing',
             propertyViewTab: 'overview',
             assumptions: defaultAssumptions,
             propertyOverrides: {},
@@ -460,7 +460,8 @@ export const useAppStore = create<AppState>()(
                     globalT12PerRoom: snapshot.globalT12PerRoom,
                     globalProFormaPerRoom: snapshot.globalProFormaPerRoom,
                     portfolios: snapshot.portfolios,
-                    selectedPortfolioId: snapshot.selectedPortfolioId
+                    selectedPortfolioId: snapshot.selectedPortfolioId,
+                    view: 'overview' // Redirect to overview on load
                 };
                 
                 set({ ...updatedState, ...calculateDerivedState(updatedState) });
@@ -521,4 +522,3 @@ if (initialPortfolio) {
             }
         }));
     }
-}

@@ -7,6 +7,7 @@ import { KpiValue } from '../../components/common/KpiCard';
 import { SectionCard } from '../../components/common/SectionCard';
 import { fmt, fmtPct } from '../../utils/formatters';
 import { Calculator, PieChart, TrendingUp, DollarSign } from '../../components/icons';
+import FinancingInputs from './components/FinancingInputs';
 
 const InputGroup: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
     <div className="space-y-3">
@@ -198,54 +199,20 @@ const FinancingCalculator: React.FC = () => {
                     </div>
                 </SectionCard>
 
-                {/* 2. Loan Structure Square */}
-                <SectionCard title="2. Loan Structure" className="bg-white h-full border-t-4 border-t-accent">
-                     <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
-                             <div className="col-span-2">
-                                <div className="bg-surface-subtle p-2 rounded-lg border border-border mb-2">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-xs font-medium text-secondary">Target LTV</span>
-                                        <span className="text-sm font-bold text-primary">{financingScenario.targetLTV}%</span>
-                                    </div>
-                                    <input 
-                                        type="range" min={10} max={85} step={1} 
-                                        value={financingScenario.targetLTV} 
-                                        onChange={(e) => handleParamChange('targetLTV', parseFloat(e.target.value))}
-                                        className="w-full h-1.5 bg-border rounded-lg appearance-none cursor-pointer accent-accent"
-                                    />
-                                </div>
-                             </div>
-                             <FloatingLabelInput label="Interest Rate" value={financingScenario.interestRate} onChange={v => handleParamChange('interestRate', v)} type="percent" step={0.125} />
-                             <FloatingLabelInput label="Amortization" value={financingScenario.amortizationYears} onChange={v => handleParamChange('amortizationYears', v)} type="years" />
-                             <FloatingLabelInput label="Loan Term" value={financingScenario.termYears} onChange={v => handleParamChange('termYears', v)} type="years" />
-                             <FloatingLabelInput label="I/O Period" value={financingScenario.ioPeriodMonths} onChange={v => handleParamChange('ioPeriodMonths', v)} type="months" />
-                             <div className="col-span-2">
-                                 <FloatingLabelInput label="Min DSCR Constraint" value={financingScenario.targetDSCR} onChange={v => handleParamChange('targetDSCR', v)} step={0.05} />
-                             </div>
-                        </div>
-                    </div>
-                </SectionCard>
-
-                {/* 3. Closing Costs Square */}
-                <SectionCard 
-                    title="3. Closing Costs" 
-                    className="bg-white h-full border-t-4 border-t-secondary"
-                    action={<span className="text-xs font-bold text-primary bg-surface-subtle px-2 py-1 rounded border border-border">Total: {fmt(loanCalcs?.totalClosingCosts || 0)}</span>}
-                >
-                    <div className="space-y-3">
-                         <div className="grid grid-cols-2 gap-3">
-                            <FloatingLabelInput label="Origination %" value={financingScenario.costs.origination} onChange={v => handleCostChange('origination', v)} type="percent" step={0.1} />
-                            <FloatingLabelInput label="Mortgage Fees" value={financingScenario.costs.mortgageFees} onChange={v => handleCostChange('mortgageFees', v)} type="currency" />
-                            <FloatingLabelInput label="Legal" value={financingScenario.costs.legal} onChange={v => handleCostChange('legal', v)} type="currency" />
-                            <FloatingLabelInput label="Title" value={financingScenario.costs.title} onChange={v => handleCostChange('title', v)} type="currency" />
-                            <FloatingLabelInput label="Inspection" value={financingScenario.costs.inspection} onChange={v => handleCostChange('inspection', v)} type="currency" />
-                            <FloatingLabelInput label="Appraisal" value={financingScenario.costs.appraisal} onChange={v => handleCostChange('appraisal', v)} type="currency" />
-                            <FloatingLabelInput label="Acq. Fee" value={financingScenario.costs.acquisitionFee} onChange={v => handleCostChange('acquisitionFee', v)} type="currency" />
-                            <FloatingLabelInput label="Reserves" value={financingScenario.costs.reserves} onChange={v => handleCostChange('reserves', v)} type="currency" />
-                        </div>
-                    </div>
-                </SectionCard>
+                {/* 2. Loan Structure Square (Managed via Component) */}
+                {/* We only pass the top half of inputs to this component if we split it, 
+                    but currently FinancingInputs handles both. We will reuse it but layout is controlled via CSS grid inside it.
+                    Actually, we can't easily split the component without refactoring.
+                    Instead, I will modify the component below to allow 'sections'.
+                    For now, let's follow the requested "squares" layout by using the existing FinancingInputs which splits columns.
+                    However, `FinancingInputs` returns a grid-cols-2. 
+                    I will replace this `FinancingInputs` usage with the refactored one that supports passing calculated props.
+                */}
+                
+                {/* REPLACED: We are breaking the previous structure to fit 3 top squares.
+                    FinancingInputs component is now responsible for square 2 and 3 content.
+                */}
+                <FinancingInputs loanCalcs={loanCalcs} />
 
             </div>
 
@@ -259,7 +226,11 @@ const FinancingCalculator: React.FC = () => {
                             <div className="space-y-4 text-sm">
                                 <div className="flex justify-between py-2 border-b border-border-subtle">
                                     <span className="text-secondary">Purchase Price</span>
-                                    <span className="font-medium text-primary">{fmt(loanCalcs?.totalCost - (loanCalcs?.totalClosingCosts || 0))}</span>
+                                    <span className="font-medium text-primary">{fmt(currentPortfolio.valuation.askingPrice)}</span>
+                                </div>
+                                <div className="flex justify-between py-2 border-b border-border-subtle">
+                                    <span className="text-secondary">Renovation Budget</span>
+                                    <span className="font-medium text-primary">{fmt(loanCalcs?.renovationCapEx)}</span>
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-border-subtle">
                                     <span className="text-secondary">Closing Costs</span>

@@ -58,8 +58,19 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
         effectiveLoanAmount = 0;
     }
 
-    // --- 3. Calculate Costs & Equity ---
-    // Use absolute costs from input. Origination is % of loan.
+    // --- 3. Logic Overrides for Costs (Auto-Calculation) ---
+    // Force Acquisition Fee to 1% of Purchase Price
+    const autoAcquisitionFee = purchasePrice * 0.01;
+
+    // Calculate Preliminary Debt Service to derive Reserves (6 months)
+    // Logic: If we have an IO period, reserves are based on IO payment. Otherwise P&I.
+    const monthlyRate = interestRate / 100 / 12;
+    const monthlyPAndIPayment = effectiveLoanAmount * (annualDebtConstant / 12);
+    const monthlyIOPayment = effectiveLoanAmount * monthlyRate;
+
+    const monthlyPaymentForReserves = ioPeriodMonths > 0 ? monthlyIOPayment : monthlyPAndIPayment;
+    const autoReserves = monthlyPaymentForReserves * 6;
+
     const originationFee = effectiveLoanAmount * (costs.origination / 100);
 
     const totalClosingCosts = 
@@ -68,8 +79,8 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
         (costs.inspection || 0) +
         (costs.appraisal || 0) +
         (costs.mortgageFees || 0) +
-        (costs.acquisitionFee || 0) +
-        (costs.reserves || 0) +
+        autoAcquisitionFee + // Use auto val
+        autoReserves +       // Use auto val
         (costs.thirdParty || 0) +
         (costs.misc || 0) +
         originationFee;
@@ -79,9 +90,6 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
     const equityRequired = totalCost - effectiveLoanAmount;
 
     // --- 4. Calculate Payments & Metrics ---
-    const monthlyRate = interestRate / 100 / 12;
-    const monthlyPAndIPayment = effectiveLoanAmount * (annualDebtConstant / 12);
-    const monthlyIOPayment = effectiveLoanAmount * monthlyRate;
     
     let annualDebtService = 0;
     if (ioPeriodMonths >= 12) {
@@ -124,6 +132,8 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
         equityRequired,
         totalClosingCosts,
         renovationCapEx,
+        autoAcquisitionFee, // Export for UI display
+        autoReserves,       // Export for UI display
 
         // Payments
         monthlyIOPayment,

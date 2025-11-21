@@ -42,16 +42,72 @@ export const calculateProperty = (
 
   const rentLift = assumptions.rentLift || 0; // % Lift
 
+  // --- Rent Roll Integration & Vacancy Count ---
+  const rawPropertyUnits = RAW_RENT_ROLL.filter(r => r.propertyId === property.id);
+  let units: Unit[] = [];
+  let vacantCount = 0;
+
+  // Build Units Array first to count vacancy
+  if (rawPropertyUnits.length > 0) {
+    units = rawPropertyUnits.map(u => {
+      const uOverride = unitOverrides[u.unit] || {};
+      const resolvedStatus = uOverride.status || (u.status as 'Occupied' | 'Vacant');
+      
+      let effectiveCurrentRent = 0;
+      if (resolvedStatus === 'Occupied') {
+          effectiveCurrentRent = uOverride.currentRent !== undefined ? uOverride.currentRent : (u.rent || 0);
+      }
+      
+      // Base Pro Forma is Market Rent unless overridden
+      const baseProForma = uOverride.proFormaRent !== undefined ? uOverride.proFormaRent : (marketRent);
+
+      return {
+        unitId: u.unit,
+        status: resolvedStatus,
+        tenantName: uOverride.tenantName !== undefined ? uOverride.tenantName : u.tenant,
+        currentRent: effectiveCurrentRent,
+        proFormaRent: baseProForma, // Will apply lift/premium later
+      };
+    });
+  } else {
+      for(let i = 1; i <= property.rooms; i++) {
+          const uId = i.toString();
+          const uOverride = unitOverrides[uId] || {};
+          const resolvedStatus = uOverride.status || 'Occupied';
+          
+          let effectiveCurrentRent = 0;
+          if (resolvedStatus === 'Occupied') {
+             effectiveCurrentRent = uOverride.currentRent !== undefined ? uOverride.currentRent : marketRent;
+          }
+          
+          const baseProForma = uOverride.proFormaRent !== undefined ? uOverride.proFormaRent : marketRent;
+
+          units.push({
+              unitId: uId,
+              status: resolvedStatus,
+              tenantName: uOverride.tenantName || `Tenant ${i}`,
+              currentRent: effectiveCurrentRent,
+              proFormaRent: baseProForma,
+          })
+      }
+  }
+
+  vacantCount = units.filter(u => u.status === 'Vacant').length;
+
   // --- Renovation Calculation ---
-  // Check if renovation is enabled for this property (default true if overrides exist, otherwise false unless global default?)
-  // For simplicity, we'll consider it enabled if the user has touched it, or default to "All Units" if globally set.
-  // Let's default to: Enabled if manually set, otherwise assume disabled for base calc, but values are available.
-  const renoEnabled = renovationOverride.enabled !== undefined ? renovationOverride.enabled : false;
-  const renoUnits = renovationOverride.unitsToRenovate !== undefined ? renovationOverride.unitsToRenovate : property.rooms;
-  const renoCostPerUnit = renovationOverride.costPerUnit !== undefined ? renovationOverride.costPerUnit : assumptions.renovationCostPerUnit;
-  const renoPremium = renovationOverride.rentPremiumPerUnit !== undefined ? renovationOverride.rentPremiumPerUnit : assumptions.renovationRentPremium;
+  // Logic: Automatically factor in vacant units.
+  // Defaults: Units = Vacant Count, Cost = 1300, Premium = 0.
   
-  const totalCapEx = renoEnabled ? renoUnits * renoCostPerUnit : 0;
+  const renoUnits = renovationOverride.unitsToRenovate !== undefined ? renovationOverride.unitsToRenovate : vacantCount;
+  // Default cost 1300 for vacant prep
+  const renoCostPerUnit = renovationOverride.costPerUnit !== undefined ? renovationOverride.costPerUnit : 1300;
+  // Default premium 0 (just bringing to market)
+  const renoPremium = renovationOverride.rentPremiumPerUnit !== undefined ? renovationOverride.rentPremiumPerUnit : 0;
+  
+  // Always calculate if there are units to renovate, explicit enablement not required for calculation
+  const renoEnabled = renoUnits > 0;
+  
+  const totalCapEx = renoUnits * renoCostPerUnit;
   
   // Value Creation from Renovation: (Annual Premium / Cap Rate) - Cost
   const annualPremium = renoUnits * renoPremium * 12;
@@ -68,60 +124,14 @@ export const calculateProperty = (
       roi: renovationROI
   };
 
-  // --- Rent Roll Integration ---
-  const rawPropertyUnits = RAW_RENT_ROLL.filter(r => r.propertyId === property.id);
-  
-  let units: Unit[] = [];
+  // --- Apply Renovation Premium to Units ---
+  // Distribute the renovation premium across the pro forma rents
+  const premiumPerUnitAvg = renoEnabled && property.rooms > 0 ? (annualPremium / 12) / property.rooms : 0;
 
-  // We need to distribute the renovation premium across units if enabled.
-  // Strategy: Assume the "Pro Forma Rent" includes the premium if renovation is enabled.
-  const premiumPerUnitAvg = renoEnabled ? (annualPremium / 12) / property.rooms : 0;
-
-  if (rawPropertyUnits.length > 0) {
-    units = rawPropertyUnits.map(u => {
-      const uOverride = unitOverrides[u.unit] || {};
-      const resolvedStatus = uOverride.status || (u.status as 'Occupied' | 'Vacant');
-      
-      let effectiveCurrentRent = 0;
-      if (resolvedStatus === 'Occupied') {
-          effectiveCurrentRent = uOverride.currentRent !== undefined ? uOverride.currentRent : (u.rent || 0);
-      }
-      
-      const baseProForma = uOverride.proFormaRent !== undefined ? uOverride.proFormaRent : (marketRent);
-      // Apply global lift + Renovation Premium
-      const liftedProForma = (baseProForma * (1 + (rentLift / 100))) + premiumPerUnitAvg;
-
-      return {
-        unitId: u.unit,
-        status: resolvedStatus,
-        tenantName: uOverride.tenantName !== undefined ? uOverride.tenantName : u.tenant,
-        currentRent: effectiveCurrentRent,
-        proFormaRent: liftedProForma,
-      };
-    });
-  } else {
-      for(let i = 1; i <= property.rooms; i++) {
-          const uId = i.toString();
-          const uOverride = unitOverrides[uId] || {};
-          const resolvedStatus = uOverride.status || 'Occupied';
-          
-          let effectiveCurrentRent = 0;
-          if (resolvedStatus === 'Occupied') {
-             effectiveCurrentRent = uOverride.currentRent !== undefined ? uOverride.currentRent : marketRent;
-          }
-          
-          const baseProForma = uOverride.proFormaRent !== undefined ? uOverride.proFormaRent : marketRent;
-          const liftedProForma = (baseProForma * (1 + (rentLift / 100))) + premiumPerUnitAvg;
-
-          units.push({
-              unitId: uId,
-              status: resolvedStatus,
-              tenantName: uOverride.tenantName || `Tenant ${i}`,
-              currentRent: effectiveCurrentRent,
-              proFormaRent: liftedProForma,
-          })
-      }
-  }
+  units = units.map(u => ({
+      ...u,
+      proFormaRent: (u.proFormaRent * (1 + (rentLift / 100))) + premiumPerUnitAvg
+  }));
 
   // 3. Calculate actuals from Rent Roll
   const actualOccupiedCount = units.filter(u => u.status === 'Occupied').length;

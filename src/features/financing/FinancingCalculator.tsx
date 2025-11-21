@@ -6,37 +6,24 @@ import { runDebtSizingEngine } from '../../utils/loanCalculations';
 import { KpiValue } from '../../components/common/KpiCard';
 import { SectionCard } from '../../components/common/SectionCard';
 import { fmt, fmtPct } from '../../utils/formatters';
-import { Calculator, PieChart, TrendingUp, DollarSign } from '../../components/icons';
+import { Calculator, PieChart, TrendingUp, DollarSign, Hammer } from '../../components/icons';
 
-const InputGroup: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-    <div className="space-y-3">
-        <h4 className="text-xs font-bold text-secondary uppercase tracking-wider border-b border-border pb-1">{title}</h4>
-        <div className="space-y-4">{children}</div>
-    </div>
-);
-
-// Specialized Input for large monetary values to prevent cursor jumping and improve UX
+// Specialized Input for large monetary values
 const PriceInput = ({ value, onChange }: { value: number, onChange: (val: number) => void }) => {
-    // Local state to handle typing without jitter
     const [localVal, setLocalVal] = useState<string>('');
     const [focused, setFocused] = useState(false);
 
-    // Sync from parent when not editing
     useEffect(() => {
         if (!focused) {
-             // Format with commas for display
             setLocalVal(value ? value.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '');
         }
     }, [value, focused]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const raw = e.target.value.replace(/,/g, '');
-        
-        // Allow only numbers
         if (!/^\d*\.?\d*$/.test(raw)) return;
 
-        setLocalVal(raw); // Keep exactly what user types in state for smooth experience
-        
+        setLocalVal(raw);
         const num = parseFloat(raw);
         if (!isNaN(num)) {
             onChange(num);
@@ -47,12 +34,10 @@ const PriceInput = ({ value, onChange }: { value: number, onChange: (val: number
 
     const handleBlur = () => {
         setFocused(false);
-        // On blur, we let the useEffect re-format the valid number
     };
 
     const handleFocus = () => {
         setFocused(true);
-        // On focus, remove commas for easy editing
         const raw = localVal.replace(/,/g, '');
         setLocalVal(raw);
     };
@@ -235,14 +220,25 @@ const FinancingCalculator: React.FC = () => {
                 >
                     <div className="space-y-3">
                          <div className="grid grid-cols-2 gap-3">
+                            <div className="relative bg-surface-subtle rounded-lg border border-border opacity-80">
+                                <label className="absolute top-1 left-3 text-[10px] font-semibold text-secondary uppercase">Acquisition Fee (1%)</label>
+                                <div className="flex items-center px-3 pt-4 pb-1 text-sm font-bold text-primary cursor-default">
+                                    {fmt(loanCalcs?.autoAcquisitionFee || 0)}
+                                </div>
+                            </div>
+                            <div className="relative bg-surface-subtle rounded-lg border border-border opacity-80">
+                                <label className="absolute top-1 left-3 text-[10px] font-semibold text-secondary uppercase">Reserves (6mo Debt Svc)</label>
+                                <div className="flex items-center px-3 pt-4 pb-1 text-sm font-bold text-primary cursor-default">
+                                    {fmt(loanCalcs?.autoReserves || 0)}
+                                </div>
+                            </div>
+
                             <FloatingLabelInput label="Origination %" value={financingScenario.costs.origination} onChange={v => handleCostChange('origination', v)} type="percent" step={0.1} />
                             <FloatingLabelInput label="Mortgage Fees" value={financingScenario.costs.mortgageFees} onChange={v => handleCostChange('mortgageFees', v)} type="currency" />
                             <FloatingLabelInput label="Legal" value={financingScenario.costs.legal} onChange={v => handleCostChange('legal', v)} type="currency" />
                             <FloatingLabelInput label="Title" value={financingScenario.costs.title} onChange={v => handleCostChange('title', v)} type="currency" />
                             <FloatingLabelInput label="Inspection" value={financingScenario.costs.inspection} onChange={v => handleCostChange('inspection', v)} type="currency" />
                             <FloatingLabelInput label="Appraisal" value={financingScenario.costs.appraisal} onChange={v => handleCostChange('appraisal', v)} type="currency" />
-                            <FloatingLabelInput label="Acq. Fee" value={financingScenario.costs.acquisitionFee} onChange={v => handleCostChange('acquisitionFee', v)} type="currency" />
-                            <FloatingLabelInput label="Reserves" value={financingScenario.costs.reserves} onChange={v => handleCostChange('reserves', v)} type="currency" />
                         </div>
                     </div>
                 </SectionCard>
@@ -259,7 +255,13 @@ const FinancingCalculator: React.FC = () => {
                             <div className="space-y-4 text-sm">
                                 <div className="flex justify-between py-2 border-b border-border-subtle">
                                     <span className="text-secondary">Purchase Price</span>
-                                    <span className="font-medium text-primary">{fmt(loanCalcs?.totalCost - (loanCalcs?.totalClosingCosts || 0))}</span>
+                                    <span className="font-medium text-primary">{fmt(currentPortfolio.valuation?.askingPrice)}</span>
+                                </div>
+                                <div className="flex justify-between py-2 border-b border-border-subtle bg-blue-50/50 px-2 -mx-2 rounded">
+                                    <span className="text-blue-800 flex items-center gap-2">
+                                        <Hammer className="w-3 h-3" /> Renovation CapEx
+                                    </span>
+                                    <span className="font-medium text-blue-900">{fmt(loanCalcs?.renovationCapEx)}</span>
                                 </div>
                                 <div className="flex justify-between py-2 border-b border-border-subtle">
                                     <span className="text-secondary">Closing Costs</span>
@@ -299,7 +301,7 @@ const FinancingCalculator: React.FC = () => {
                                 <div className="p-3 bg-primary/5 rounded-full text-primary"><Calculator className="w-6 h-6" /></div>
                                 <div>
                                     <div className="text-2xl font-bold text-primary">{fmt(loanCalcs?.monthlyPAndIPayment)}</div>
-                                    <div className="text-xs text-secondary">Monthly P&I Payment</div>
+                                    <div className="text-xs text-secondary">Debt Service (P&I)</div>
                                 </div>
                             </div>
                              {financingScenario.ioPeriodMonths > 0 && (

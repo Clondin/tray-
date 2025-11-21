@@ -3,7 +3,7 @@ import React from 'react';
 import { useAppStore } from '../../store/appStore';
 import { SectionCard } from '../../components/common/SectionCard';
 import { fmt, fmtPct } from '../../utils/formatters';
-import { TrendingUp, Hammer, AlertTriangle } from '../../components/icons';
+import { TrendingUp, Hammer, AlertTriangle, Check } from '../../components/icons';
 import type { CalculatedProperty } from '../../types';
 
 const EditableField: React.FC<{ 
@@ -55,8 +55,7 @@ const StatRow: React.FC<{ label: string, value: string | number, subValue?: stri
 );
 
 export const RenovationTab: React.FC<{ property: CalculatedProperty }> = ({ property }) => {
-    const { assumptions, setRenovationOverride } = useAppStore(state => ({
-        assumptions: state.assumptions,
+    const { setRenovationOverride } = useAppStore(state => ({
         setRenovationOverride: state.setRenovationOverride,
     }));
 
@@ -64,80 +63,81 @@ export const RenovationTab: React.FC<{ property: CalculatedProperty }> = ({ prop
         setRenovationOverride(property.id, { [field]: val });
     };
 
-    const isEnabled = property.renovation.enabled;
+    const vacantCount = property.units.filter(u => u.status === 'Vacant').length;
+    const isProjectActive = property.renovation.totalCapEx > 0;
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
             
             {/* Left Column: Inputs */}
             <div className="lg:col-span-7 space-y-6">
-                <SectionCard title="Renovation Plan & Budget">
+                <SectionCard title="Vacant Unit Prep & Value Add">
                     <div className="space-y-6">
-                        {/* Toggle Switch */}
+                        {/* Header Info */}
                         <div className="flex items-center justify-between p-4 bg-surface-subtle rounded-xl border border-border">
                             <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${isEnabled ? 'bg-accent text-white' : 'bg-gray-200 text-gray-500'}`}>
+                                <div className="p-2 rounded-lg bg-accent text-white">
                                     <Hammer className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <div className="text-sm font-bold text-primary">Value-Add Renovation</div>
-                                    <div className="text-xs text-secondary">Enable to apply CapEx and rent premiums.</div>
+                                    <div className="text-sm font-bold text-primary">Make-Ready & Renovation</div>
+                                    <div className="text-xs text-secondary">
+                                        Automatically includes {vacantCount} vacant unit{vacantCount !== 1 ? 's' : ''} @ default $1,300 cost.
+                                    </div>
                                 </div>
                             </div>
-                            <button 
-                                onClick={() => updateRenovation('enabled', !isEnabled)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isEnabled ? 'bg-accent' : 'bg-gray-200'}`}
-                            >
-                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                            </button>
+                            <div className="text-right">
+                                <span className="block text-xs text-secondary font-bold uppercase">Total CapEx</span>
+                                <span className="text-lg font-bold text-primary">{fmt(property.renovation.totalCapEx)}</span>
+                            </div>
                         </div>
 
-                        {isEnabled ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-slide-up">
-                                <div className="col-span-2 md:col-span-1">
-                                    <EditableField 
-                                        label="Scope (Units)" 
-                                        value={property.renovation.unitsToRenovate} 
-                                        onChange={v => updateRenovation('unitsToRenovate', Math.min(v, property.rooms))} 
-                                        placeholder={property.rooms}
-                                        active
-                                    />
-                                    <div className="text-[10px] text-muted mt-1 ml-1">Max: {property.rooms} Units</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-slide-up">
+                            <div className="col-span-2 md:col-span-1">
+                                <EditableField 
+                                    label="Scope (Units)" 
+                                    value={property.renovation.unitsToRenovate} 
+                                    onChange={v => updateRenovation('unitsToRenovate', Math.min(v, property.rooms))} 
+                                    placeholder={vacantCount}
+                                    active
+                                />
+                                <div className="flex items-center gap-1 mt-1 ml-1">
+                                    <Check className="w-3 h-3 text-success" />
+                                    <span className="text-[10px] text-muted">Current Vacant: {vacantCount}</span>
                                 </div>
-                                <div className="hidden md:block"></div>
+                            </div>
+                            <div className="hidden md:block"></div>
 
-                                <EditableField 
-                                    label="CapEx Budget / Unit" 
-                                    value={property.renovation.costPerUnit} 
-                                    onChange={v => updateRenovation('costPerUnit', v)} 
-                                    placeholder={assumptions.renovationCostPerUnit}
-                                    type="currency"
-                                    active
-                                />
-                                <EditableField 
-                                    label="Rent Premium / Unit" 
-                                    value={property.renovation.rentPremiumPerUnit} 
-                                    onChange={v => updateRenovation('rentPremiumPerUnit', v)} 
-                                    placeholder={assumptions.renovationRentPremium}
-                                    type="currency"
-                                    active
-                                />
-                            </div>
-                        ) : (
-                            <div className="text-center py-8 text-muted bg-surface-subtle/30 rounded-xl border border-dashed border-border">
-                                <p>Renovations are disabled for this property.</p>
-                                <button onClick={() => updateRenovation('enabled', true)} className="text-accent hover:underline text-sm font-medium mt-2">Enable Plan</button>
-                            </div>
-                        )}
+                            <EditableField 
+                                label="Renovation Cost / Unit" 
+                                value={property.renovation.costPerUnit} 
+                                onChange={v => updateRenovation('costPerUnit', v)} 
+                                placeholder={1300}
+                                type="currency"
+                                active
+                            />
+                            <EditableField 
+                                label="Rent Premium / Unit" 
+                                value={property.renovation.rentPremiumPerUnit} 
+                                onChange={v => updateRenovation('rentPremiumPerUnit', v)} 
+                                placeholder={0}
+                                type="currency"
+                                active
+                            />
+                        </div>
+                        
+                        <div className="text-xs text-muted italic p-2 bg-surface-subtle/50 rounded border border-border-subtle">
+                            * System defaults to <strong>$1,300</strong> per unit for basic vacant turnover with <strong>$0</strong> rent premium (bringing rent to market rate). Increase the cost and premium above for extensive value-add renovations.
+                        </div>
                     </div>
                 </SectionCard>
 
-                {isEnabled && (
+                {isProjectActive && (
                     <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3 items-start">
                         <AlertTriangle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                         <div className="text-xs text-blue-800 leading-relaxed">
-                            <strong>Impact on Underwriting:</strong> Activating this plan increases the Total Project Cost by <strong>{fmt(property.renovation.totalCapEx)}</strong>. 
-                            The projected premiums are added to the Pro Forma Rent Roll, increasing Stabilized NOI and Valuation.
+                            <strong>Capital Requirement:</strong> Total Project Cost will increase by <strong>{fmt(property.renovation.totalCapEx)}</strong>. 
+                            Any rent premiums entered above will be added to the Pro Forma Rent Roll.
                         </div>
                     </div>
                 )}
@@ -145,7 +145,7 @@ export const RenovationTab: React.FC<{ property: CalculatedProperty }> = ({ prop
 
             {/* Right Column: Analysis */}
             <div className="lg:col-span-5 space-y-6">
-                <SectionCard title="Value Creation Analysis" className={`h-full ${!isEnabled ? 'opacity-60 grayscale' : ''}`}>
+                <SectionCard title="Value Creation Analysis" className={`h-full ${!isProjectActive ? 'opacity-60' : ''}`}>
                      <div className="space-y-6">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="p-4 bg-surface-subtle rounded-xl border border-border text-center">
@@ -179,7 +179,7 @@ export const RenovationTab: React.FC<{ property: CalculatedProperty }> = ({ prop
                                     +{fmt(property.renovation.valueCreation)}
                                 </div>
                                 <div className="text-xs text-muted mt-1">
-                                    @ {fmtPct(assumptions.capRate)} Exit Cap Rate
+                                    Based on Exit Cap Rate
                                 </div>
                             </div>
                              <StatRow 

@@ -106,6 +106,7 @@ export interface UnitOverride {
 
 export interface PropertyOverrides {
   [propertyId: number]: {
+    imageUrl?: string;
     currentOccupancy?: number;
     stabilizedOccupancy?: number;
     rent?: number;

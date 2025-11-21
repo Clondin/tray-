@@ -320,7 +320,7 @@ const FinancingCalculator: React.FC = () => {
                                 <div className="p-3 bg-primary/5 rounded-full text-primary"><Calculator className="w-6 h-6" /></div>
                                 <div>
                                     <div className="text-2xl font-bold text-primary">{fmt(loanCalcs?.monthlyPAndIPayment)}</div>
-                                    <div className="text-xs text-secondary">Monthly Debt Service</div>
+                                    <div className="text-xs text-secondary">Debt Service (P&I)</div>
                                 </div>
                             </div>
                              {financingScenario.ioPeriodMonths > 0 && (

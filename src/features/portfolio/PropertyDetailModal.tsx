@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '../../store/appStore';
 import type { CalculatedProperty, ExpenseDetail } from '../../types';
 import { fmt, fmtPct } from '../../utils/formatters';
-import { X, Building2, Layers, FileText, Check, AlertTriangle, Calculator, TrendingUp, Target, DollarSign, BarChart, Hammer } from '../../components/icons';
+import { X, Building2, Layers, FileText, Check, AlertTriangle, Calculator, TrendingUp, Target, DollarSign, BarChart, Hammer, Upload } from '../../components/icons';
 import { RentRollTable } from '../property/RentRollTable';
 import { ExpensesTab } from '../property/ExpensesTab';
 import { RenovationTab } from '../property/RenovationTab';
@@ -75,6 +75,17 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
         setPropertyOverrides(property.id, {});
     };
 
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPropertyOverrides(property.id, { imageUrl: reader.result as string });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const occupancyRate = property.current.occupancy;
     const totalUnits = property.rooms;
     const occupiedUnits = property.current.occupiedRooms;
@@ -94,17 +105,26 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
                 {/* Header */}
                 <header className="flex items-center justify-between px-6 py-5 border-b border-border bg-white flex-shrink-0">
                     <div className="flex items-center gap-4">
-                        {property.imageUrl ? (
-                            <img 
-                                src={property.imageUrl} 
-                                alt={property.address}
-                                className="w-24 h-16 object-cover rounded-lg border border-border shadow-sm bg-surface-subtle"
-                            />
-                        ) : (
-                            <div className="w-16 h-16 rounded-xl bg-surface-subtle flex items-center justify-center text-primary border border-border">
-                                <Building2 className="w-8 h-8" />
-                            </div>
-                        )}
+                        <div className="relative group w-24 h-16 rounded-lg overflow-hidden border border-border bg-surface-subtle flex-shrink-0">
+                             {property.imageUrl ? (
+                                <img 
+                                    src={property.imageUrl} 
+                                    alt={property.address}
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-primary/30">
+                                    <Building2 className="w-8 h-8" />
+                                </div>
+                            )}
+                            
+                            {/* Upload Overlay */}
+                            <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                <Upload className="w-5 h-5 text-white" />
+                                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                            </label>
+                        </div>
+
                         <div>
                             <h2 className="text-xl font-bold text-primary tracking-tight">{property.address}</h2>
                             <div className="flex items-center gap-2 text-sm text-secondary mt-0.5">

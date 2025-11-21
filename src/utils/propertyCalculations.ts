@@ -30,6 +30,9 @@ export const calculateProperty = (
   const overrides = propertyOverrides[property.id] || {};
   const unitOverrides = overrides.units || {};
   
+  // Handle Image Override
+  const imageUrl = overrides.imageUrl || property.imageUrl;
+  
   // Overrides or Defaults
   const marketRent = overrides.rent || assumptions.marketRent;
   const stabilizedOcc = overrides.stabilizedOccupancy || assumptions.stabilizedOccupancy;
@@ -218,6 +221,7 @@ export const calculateProperty = (
 
   return {
     ...property,
+    imageUrl, // Updated
     current: { occupiedRooms: currentOccupiedRooms, occupancy: currentOcc, gri: currentGRI, opex: currentOpex, noi: currentNOI, capRate: currentCapRate },
     stabilized: { occupiedRooms: stabilizedOccupiedRooms, occupancy: stabilizedOcc, gri: stabilizedGRI, opex: stabilizedOpex, noi: stabilizedNOI, capRate: stabilizedCapRate },
     valuation: { askingPrice, stabilizedValue, pricePerRoom: askingPrice / property.rooms, upside },

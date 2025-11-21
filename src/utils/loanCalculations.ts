@@ -34,7 +34,7 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
         ? stabilizedNOI / (targetDSCR * annualDebtConstant) 
         : 0;
 
-    // LTV typically applies to Purchase Price in simple models, but can be LTC for value-add
+    // LTV typically applies to Purchase Price in simple models
     const maxLoanByLTV = purchasePrice * (targetLTV / 100);
 
     // --- 2. Determine Effective Loan Amount ---
@@ -63,15 +63,15 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
     const autoAcquisitionFee = purchasePrice * 0.01;
 
     // Calculate Preliminary Debt Service to derive Reserves (6 months)
-    // Logic: If we have an IO period, reserves are based on IO payment. Otherwise P&I.
     const monthlyRate = interestRate / 100 / 12;
     const monthlyPAndIPayment = effectiveLoanAmount * (annualDebtConstant / 12);
     const monthlyIOPayment = effectiveLoanAmount * monthlyRate;
 
+    // Logic: If we have an IO period, reserves are based on IO payment. Otherwise P&I.
     const monthlyPaymentForReserves = ioPeriodMonths > 0 ? monthlyIOPayment : monthlyPAndIPayment;
     const autoReserves = monthlyPaymentForReserves * 6;
 
-    const originationFee = effectiveLoanAmount * (costs.origination / 100);
+    const originationFeeAmount = effectiveLoanAmount * (costs.origination / 100);
 
     const totalClosingCosts = 
         (costs.legal || 0) +
@@ -83,7 +83,7 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
         autoReserves +       // Use auto val
         (costs.thirdParty || 0) +
         (costs.misc || 0) +
-        originationFee;
+        originationFeeAmount;
 
     // Total Project Cost includes Purchase Price + Renovation CapEx + Closing Costs
     const totalCost = purchasePrice + renovationCapEx + totalClosingCosts;
@@ -134,6 +134,7 @@ export const runDebtSizingEngine = (scenario: FinancingScenario, portfolio: any)
         renovationCapEx,
         autoAcquisitionFee, // Export for UI display
         autoReserves,       // Export for UI display
+        originationFeeAmount, // Export for UI display
 
         // Payments
         monthlyIOPayment,

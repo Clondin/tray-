@@ -73,7 +73,7 @@ const FloatingLabelInput: React.FC<{ label: string; value: number; onChange: (va
     const suffix = type === 'percent' ? '%' : type === 'years' ? ' yrs' : type === 'months' ? ' mo' : '';
     
     return (
-        <div className={`relative bg-surface-subtle rounded-lg border border-border transition-all ${disabled ? 'opacity-70 cursor-not-allowed' : 'focus-within:border-accent focus-within:ring-1 focus-within:ring-accent'}`}>
+        <div className={`relative bg-white rounded-lg border border-border transition-all ${disabled ? 'opacity-70 cursor-not-allowed bg-surface-subtle' : 'focus-within:border-accent focus-within:ring-1 focus-within:ring-accent'}`}>
             <label className="absolute top-1 left-3 text-[10px] font-semibold text-secondary uppercase">{label}</label>
             <div className="flex items-center px-3 pt-4 pb-1">
                 {prefix && <span className="text-sm text-muted mr-1">{prefix}</span>}
@@ -188,7 +188,7 @@ const FinancingCalculator: React.FC = () => {
                      <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
                              <div className="col-span-2">
-                                <div className="bg-surface-subtle p-2 rounded-lg border border-border mb-2">
+                                <div className="bg-white p-2 rounded-lg border border-border mb-2">
                                     <div className="flex justify-between items-center mb-1">
                                         <span className="text-xs font-medium text-secondary">Target LTV</span>
                                         <span className="text-sm font-bold text-primary">{financingScenario.targetLTV}%</span>
@@ -227,13 +227,32 @@ const FinancingCalculator: React.FC = () => {
                                 </div>
                             </div>
                             <div className="relative bg-surface-subtle rounded-lg border border-border opacity-80">
-                                <label className="absolute top-1 left-3 text-[10px] font-semibold text-secondary uppercase">Reserves (6mo Debt Svc)</label>
+                                <label className="absolute top-1 left-3 text-[10px] font-semibold text-secondary uppercase">Reserves (6mo Debt)</label>
                                 <div className="flex items-center px-3 pt-4 pb-1 text-sm font-bold text-primary cursor-default">
                                     {fmt(loanCalcs?.autoReserves || 0)}
                                 </div>
                             </div>
+                            
+                            {/* Origination with calculated display */}
+                            <div className="relative bg-white rounded-lg border border-border transition-all focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
+                                <label className="absolute top-1 left-3 text-[10px] font-semibold text-secondary uppercase">Origination %</label>
+                                <div className="flex items-center justify-between px-3 pt-4 pb-1">
+                                    <div className="flex items-center w-20">
+                                        <input 
+                                            type="number" 
+                                            step={0.1}
+                                            value={financingScenario.costs.origination}
+                                            onChange={e => handleCostChange('origination', parseFloat(e.target.value) || 0)}
+                                            className="w-full bg-transparent border-none p-0 text-sm font-bold text-primary focus:ring-0 placeholder-muted/50"
+                                        />
+                                        <span className="text-sm text-muted ml-1">%</span>
+                                    </div>
+                                    <span className="text-xs text-muted font-medium border-l border-border pl-2">
+                                        {fmt(loanCalcs?.originationFeeAmount || 0)}
+                                    </span>
+                                </div>
+                            </div>
 
-                            <FloatingLabelInput label="Origination %" value={financingScenario.costs.origination} onChange={v => handleCostChange('origination', v)} type="percent" step={0.1} />
                             <FloatingLabelInput label="Mortgage Fees" value={financingScenario.costs.mortgageFees} onChange={v => handleCostChange('mortgageFees', v)} type="currency" />
                             <FloatingLabelInput label="Legal" value={financingScenario.costs.legal} onChange={v => handleCostChange('legal', v)} type="currency" />
                             <FloatingLabelInput label="Title" value={financingScenario.costs.title} onChange={v => handleCostChange('title', v)} type="currency" />
@@ -301,7 +320,7 @@ const FinancingCalculator: React.FC = () => {
                                 <div className="p-3 bg-primary/5 rounded-full text-primary"><Calculator className="w-6 h-6" /></div>
                                 <div>
                                     <div className="text-2xl font-bold text-primary">{fmt(loanCalcs?.monthlyPAndIPayment)}</div>
-                                    <div className="text-xs text-secondary">Debt Service (P&I)</div>
+                                    <div className="text-xs text-secondary">Monthly Debt Service</div>
                                 </div>
                             </div>
                              {financingScenario.ioPeriodMonths > 0 && (

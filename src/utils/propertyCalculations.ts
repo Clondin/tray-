@@ -99,12 +99,12 @@ export const calculateProperty = (
   // Defaults: Units = Vacant Count, Cost = 1300, Premium = 0.
   
   const renoUnits = renovationOverride.unitsToRenovate !== undefined ? renovationOverride.unitsToRenovate : vacantCount;
-  // Default cost 1300 for vacant prep
+  // Default cost 1300 for vacant prep (turnover cost)
   const renoCostPerUnit = renovationOverride.costPerUnit !== undefined ? renovationOverride.costPerUnit : 1300;
-  // Default premium 0 (just bringing to market)
+  // Default premium 0 (just bringing to market standard)
   const renoPremium = renovationOverride.rentPremiumPerUnit !== undefined ? renovationOverride.rentPremiumPerUnit : 0;
   
-  // Always calculate if there are units to renovate, explicit enablement not required for calculation
+  // Automatically enabled if there are units to renovate
   const renoEnabled = renoUnits > 0;
   
   const totalCapEx = renoUnits * renoCostPerUnit;

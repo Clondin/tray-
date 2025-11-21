@@ -5,7 +5,7 @@ import { PROPERTIES_DATA, lowRiskIds, highRiskIds, initialAllocations } from '..
 import { DEFAULT_T12_PER_UNIT } from '../data/DEFAULT_EXPENSES';
 import { calculateProperty } from '../utils/propertyCalculations';
 import { calculatePortfolio as calculatePortfolioUtil } from '../utils/portfolioCalculations';
-import type { View, PropertyTab, Assumptions, PropertyOverrides, Portfolio, CalculatedProperty, PriceAllocations, FinancingScenario, SavedFinancingScenario, InvestorReturnsScenario, UnitOverride, DashboardKPI, ExpenseDetail, DealSnapshot, RenovationProfile } from '../types';
+import type { View, PropertyTab, Assumptions, PropertyOverrides, Portfolio, CalculatedProperty, PriceAllocations, FinancingScenario, RefinanceScenario, SavedFinancingScenario, InvestorReturnsScenario, UnitOverride, DashboardKPI, ExpenseDetail, DealSnapshot, RenovationProfile } from '../types';
 
 interface AppState {
   view: View;
@@ -17,6 +17,7 @@ interface AppState {
   selectedPortfolioId: string;
   modalPropertyId: number | null;
   financingScenario: FinancingScenario;
+  refinanceScenario: RefinanceScenario;
   investorReturnsScenario: InvestorReturnsScenario;
   savedScenarios: SavedFinancingScenario[]; // Keeping generic saved scenarios
   savedSnapshots: DealSnapshot[]; // Full deal snapshots
@@ -59,6 +60,7 @@ interface AppState {
   openPropertyModal: (id: number) => void;
   closePropertyModal: () => void;
   setFinancingScenario: (params: Partial<FinancingScenario>) => void;
+  setRefinanceScenario: (params: Partial<RefinanceScenario>) => void;
   setInvestorReturnsScenario: (params: Partial<InvestorReturnsScenario>) => void;
   applyLoanPreset: (preset: 'bridge' | 'bank' | 'agency') => void;
   saveCurrentScenario: (name: string, results: any) => void;
@@ -123,6 +125,26 @@ const defaultFinancingScenario: FinancingScenario = {
     }
 };
 
+const defaultRefinanceScenario: RefinanceScenario = {
+    enabled: false,
+    refinanceMonth: 36, // Year 3
+    interestRate: 6.0,
+    amortizationYears: 30,
+    maxLTV: 75,
+    minDSCR: 1.25,
+    valuationCapRate: 7.0,
+    costs: {
+      legal: 25000,
+      title: 15000,
+      appraisal: 8000,
+      mortgageFees: 50000,
+      reserves: 200000,
+      origination: 1.0,
+      thirdParty: 5000,
+      misc: 0
+    }
+};
+
 const defaultInvestorReturnsScenario: InvestorReturnsScenario = {
     lpOwnershipPercent: 0.70,
     gpOwnershipPercent: 0.30,
@@ -181,6 +203,7 @@ export const useAppStore = create<AppState>()(
             selectedPortfolioId: 'full',
             modalPropertyId: null,
             financingScenario: defaultFinancingScenario,
+            refinanceScenario: defaultRefinanceScenario,
             investorReturnsScenario: defaultInvestorReturnsScenario,
             savedScenarios: [],
             savedSnapshots: [],
@@ -380,6 +403,7 @@ export const useAppStore = create<AppState>()(
             openPropertyModal: (id) => set({ modalPropertyId: id, propertyViewTab: 'overview' }),
             closePropertyModal: () => set({ modalPropertyId: null }),
             setFinancingScenario: (params) => set(state => ({ financingScenario: { ...state.financingScenario, ...params }})),
+            setRefinanceScenario: (params) => set(state => ({ refinanceScenario: { ...state.refinanceScenario, ...params }})),
             setInvestorReturnsScenario: (params) => set(state => ({ investorReturnsScenario: { ...state.investorReturnsScenario, ...params }})),
             applyLoanPreset: (preset) => {
                 let newScenario: Partial<FinancingScenario> = {};
@@ -436,6 +460,7 @@ export const useAppStore = create<AppState>()(
                     propertyOverrides: state.propertyOverrides,
                     priceAllocations: state.priceAllocations,
                     financingScenario: state.financingScenario,
+                    refinanceScenario: state.refinanceScenario,
                     investorReturnsScenario: state.investorReturnsScenario,
                     globalT12PerRoom: state.globalT12PerRoom,
                     globalProFormaPerRoom: state.globalProFormaPerRoom,
@@ -456,6 +481,7 @@ export const useAppStore = create<AppState>()(
                     propertyOverrides: snapshot.propertyOverrides,
                     priceAllocations: snapshot.priceAllocations,
                     financingScenario: snapshot.financingScenario,
+                    refinanceScenario: snapshot.refinanceScenario || defaultRefinanceScenario,
                     investorReturnsScenario: snapshot.investorReturnsScenario,
                     globalT12PerRoom: snapshot.globalT12PerRoom,
                     globalProFormaPerRoom: snapshot.globalProFormaPerRoom,
@@ -488,6 +514,7 @@ export const useAppStore = create<AppState>()(
                 portfolios: state.portfolios,
                 selectedPortfolioId: state.selectedPortfolioId,
                 financingScenario: state.financingScenario,
+                refinanceScenario: state.refinanceScenario,
                 investorReturnsScenario: state.investorReturnsScenario,
                 savedScenarios: state.savedScenarios,
                 savedSnapshots: state.savedSnapshots,

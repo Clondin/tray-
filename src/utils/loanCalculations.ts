@@ -8,7 +8,7 @@ import type { FinancingScenario } from '../types';
  * @param amortizationYears - The amortization period in years.
  * @returns The annual debt constant.
  */
-const calculateAnnualDebtConstant = (interestRate: number, amortizationYears: number): number => {
+export const calculateAnnualDebtConstant = (interestRate: number, amortizationYears: number): number => {
     if (interestRate <= 0 || amortizationYears <= 0) return 0;
     const monthlyRate = interestRate / 100 / 12;
     const numPayments = amortizationYears * 12;

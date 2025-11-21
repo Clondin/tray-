@@ -147,6 +147,26 @@ export interface FinancingScenario {
   }
 }
 
+export interface RefinanceScenario {
+  enabled: boolean;
+  refinanceMonth: number; // e.g., 36 for year 3, 60 for year 5
+  interestRate: number;
+  amortizationYears: number;
+  maxLTV: number;
+  minDSCR: number;
+  valuationCapRate: number; // Cap rate used to value the property at Refi time
+  costs: {
+    legal: number;
+    title: number;
+    appraisal: number;
+    mortgageFees: number;
+    reserves: number;
+    origination: number; // Percentage of new loan
+    thirdParty: number;
+    misc: number;
+  };
+}
+
 export interface InvestorReturnsScenario {
   lpOwnershipPercent: number;
   gpOwnershipPercent: number;
@@ -170,6 +190,7 @@ export interface DealSnapshot {
   propertyOverrides: PropertyOverrides;
   priceAllocations: PriceAllocations;
   financingScenario: FinancingScenario;
+  refinanceScenario: RefinanceScenario;
   investorReturnsScenario: InvestorReturnsScenario;
   globalT12PerRoom: Partial<ExpenseDetail>;
   globalProFormaPerRoom: Partial<ExpenseDetail>;

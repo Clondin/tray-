@@ -6,7 +6,8 @@ import { runDebtSizingEngine } from '../../utils/loanCalculations';
 import { KpiValue } from '../../components/common/KpiCard';
 import { SectionCard } from '../../components/common/SectionCard';
 import { fmt, fmtPct } from '../../utils/formatters';
-import { Calculator, PieChart, TrendingUp, DollarSign, Hammer } from '../../components/icons';
+import { Calculator, PieChart, TrendingUp, DollarSign, Hammer, Layers } from '../../components/icons';
+import RefinanceCalculator from './RefinanceCalculator';
 
 // Specialized Input for large monetary values
 const PriceInput = ({ value, onChange }: { value: number, onChange: (val: number) => void }) => {
@@ -130,12 +131,15 @@ const CapitalStackBar: React.FC<{ equity: number; debt: number; total: number }>
 };
 
 const FinancingCalculator: React.FC = () => {
-    const { currentPortfolio, financingScenario, setFinancingScenario, setGlobalPortfolioPrice } = useAppStore(state => ({
+    const { currentPortfolio, financingScenario, setFinancingScenario, setGlobalPortfolioPrice, refinanceScenario } = useAppStore(state => ({
         currentPortfolio: state.currentPortfolio,
         financingScenario: state.financingScenario,
         setFinancingScenario: state.setFinancingScenario,
         setGlobalPortfolioPrice: state.setGlobalPortfolioPrice,
+        refinanceScenario: state.refinanceScenario
     }));
+
+    const [activeTab, setActiveTab] = useState<'acquisition' | 'refinance'>('acquisition');
 
     const loanCalcs = useMemo(() => {
         if (!currentPortfolio) return null;
@@ -154,213 +158,245 @@ const FinancingCalculator: React.FC = () => {
 
     return (
         <div className="animate-fade-in space-y-8 pb-10">
-            <header>
-                <h2 className="text-2xl font-bold text-primary">Capital Markets & Financing</h2>
-                <p className="text-secondary text-sm mt-1">Structure debt, analyze leverage, and calculate returns on equity.</p>
+            <header className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-2xl font-bold text-primary">Capital Markets & Financing</h2>
+                    <p className="text-secondary text-sm mt-1">Structure debt, analyze leverage, and calculate returns on equity.</p>
+                </div>
+                
+                {/* Tab Switcher */}
+                <div className="bg-surface-subtle p-1 rounded-lg border border-border flex gap-1">
+                     <button
+                        onClick={() => setActiveTab('acquisition')}
+                        className={`
+                            px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2
+                            ${activeTab === 'acquisition' ? 'bg-white text-primary shadow-sm' : 'text-secondary hover:text-primary'}
+                        `}
+                    >
+                        <DollarSign className="w-4 h-4" />
+                        Acquisition Loan
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('refinance')}
+                        className={`
+                            px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2
+                            ${activeTab === 'refinance' ? 'bg-white text-primary shadow-sm' : 'text-secondary hover:text-primary'}
+                        `}
+                    >
+                        <TrendingUp className="w-4 h-4" />
+                        Refinance Strategy
+                        {refinanceScenario.enabled && <span className="w-2 h-2 rounded-full bg-accent ml-1"></span>}
+                    </button>
+                </div>
             </header>
 
-            {/* Dominant Top Row: 3 Key Aspect Squares */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
-                {/* 1. Valuation Square */}
-                <SectionCard title="1. Valuation" className="bg-white h-full border-t-4 border-t-primary">
-                    <div className="space-y-6">
-                        <PriceInput 
-                            value={currentPortfolio.valuation?.askingPrice || 0} 
-                            onChange={setGlobalPortfolioPrice} 
-                        />
-                        
-                        <div className="grid grid-cols-2 gap-4 p-4 bg-surface-subtle rounded-xl border border-border">
-                            <div>
-                                <div className="text-xs text-secondary uppercase">Entry Cap</div>
-                                <div className="text-lg font-bold text-primary">{fmtPct(currentPortfolio.current?.capRate)}</div>
-                            </div>
-                            <div>
-                                <div className="text-xs text-secondary uppercase">Stabilized Cap</div>
-                                <div className="text-lg font-bold text-success">{fmtPct(currentPortfolio.stabilized?.capRate)}</div>
-                            </div>
-                        </div>
-                    </div>
-                </SectionCard>
-
-                {/* 2. Loan Structure Square */}
-                <SectionCard title="2. Loan Structure" className="bg-white h-full border-t-4 border-t-accent">
-                     <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
-                             <div className="col-span-2">
-                                <div className="bg-white p-2 rounded-lg border border-border mb-2">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-xs font-medium text-secondary">Target LTV</span>
-                                        <span className="text-sm font-bold text-primary">{financingScenario.targetLTV}%</span>
-                                    </div>
-                                    <input 
-                                        type="range" min={10} max={85} step={1} 
-                                        value={financingScenario.targetLTV} 
-                                        onChange={(e) => handleParamChange('targetLTV', parseFloat(e.target.value))}
-                                        className="w-full h-1.5 bg-border rounded-lg appearance-none cursor-pointer accent-accent"
-                                    />
-                                </div>
-                             </div>
-                             <FloatingLabelInput label="Interest Rate" value={financingScenario.interestRate} onChange={v => handleParamChange('interestRate', v)} type="percent" step={0.125} />
-                             <FloatingLabelInput label="Amortization" value={financingScenario.amortizationYears} onChange={v => handleParamChange('amortizationYears', v)} type="years" />
-                             <FloatingLabelInput label="Loan Term" value={financingScenario.termYears} onChange={v => handleParamChange('termYears', v)} type="years" />
-                             <FloatingLabelInput label="I/O Period" value={financingScenario.ioPeriodMonths} onChange={v => handleParamChange('ioPeriodMonths', v)} type="months" />
-                             <div className="col-span-2">
-                                 <FloatingLabelInput label="Min DSCR Constraint" value={financingScenario.targetDSCR} onChange={v => handleParamChange('targetDSCR', v)} step={0.05} />
-                             </div>
-                        </div>
-                    </div>
-                </SectionCard>
-
-                {/* 3. Closing Costs Square */}
-                <SectionCard 
-                    title="3. Closing Costs" 
-                    className="bg-white h-full border-t-4 border-t-secondary"
-                    action={<span className="text-xs font-bold text-primary bg-surface-subtle px-2 py-1 rounded border border-border">Total: {fmt(loanCalcs?.totalClosingCosts || 0)}</span>}
-                >
-                    <div className="space-y-3">
-                         <div className="grid grid-cols-2 gap-3">
-                            <div className="relative bg-surface-subtle rounded-lg border border-border opacity-80">
-                                <label className="absolute top-1 left-3 text-[10px] font-semibold text-secondary uppercase">Acquisition Fee (1%)</label>
-                                <div className="flex items-center px-3 pt-4 pb-1 text-sm font-bold text-primary cursor-default">
-                                    {fmt(loanCalcs?.autoAcquisitionFee || 0)}
-                                </div>
-                            </div>
-                            <div className="relative bg-surface-subtle rounded-lg border border-border opacity-80">
-                                <label className="absolute top-1 left-3 text-[10px] font-semibold text-secondary uppercase">Reserves (6mo Debt)</label>
-                                <div className="flex items-center px-3 pt-4 pb-1 text-sm font-bold text-primary cursor-default">
-                                    {fmt(loanCalcs?.autoReserves || 0)}
-                                </div>
-                            </div>
+            {activeTab === 'refinance' ? (
+                <RefinanceCalculator />
+            ) : (
+                <>
+                {/* Dominant Top Row: 3 Key Aspect Squares */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    {/* 1. Valuation Square */}
+                    <SectionCard title="1. Valuation" className="bg-white h-full border-t-4 border-t-primary">
+                        <div className="space-y-6">
+                            <PriceInput 
+                                value={currentPortfolio.valuation?.askingPrice || 0} 
+                                onChange={setGlobalPortfolioPrice} 
+                            />
                             
-                            {/* Origination with calculated display */}
-                            <div className="relative bg-white rounded-lg border border-border transition-all focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
-                                <label className="absolute top-1 left-3 text-[10px] font-semibold text-secondary uppercase">Origination %</label>
-                                <div className="flex items-center justify-between px-3 pt-4 pb-1">
-                                    <div className="flex items-center w-20">
-                                        <input 
-                                            type="number" 
-                                            step={0.1}
-                                            value={financingScenario.costs.origination}
-                                            onChange={e => handleCostChange('origination', parseFloat(e.target.value) || 0)}
-                                            className="w-full bg-transparent border-none p-0 text-sm font-bold text-primary focus:ring-0 placeholder-muted/50"
-                                        />
-                                        <span className="text-sm text-muted ml-1">%</span>
-                                    </div>
-                                    <span className="text-xs text-muted font-medium border-l border-border pl-2">
-                                        {fmt(loanCalcs?.originationFeeAmount || 0)}
-                                    </span>
+                            <div className="grid grid-cols-2 gap-4 p-4 bg-surface-subtle rounded-xl border border-border">
+                                <div>
+                                    <div className="text-xs text-secondary uppercase">Entry Cap</div>
+                                    <div className="text-lg font-bold text-primary">{fmtPct(currentPortfolio.current?.capRate)}</div>
                                 </div>
-                            </div>
-
-                            <FloatingLabelInput label="Mortgage Fees" value={financingScenario.costs.mortgageFees} onChange={v => handleCostChange('mortgageFees', v)} type="currency" />
-                            <FloatingLabelInput label="Legal" value={financingScenario.costs.legal} onChange={v => handleCostChange('legal', v)} type="currency" />
-                            <FloatingLabelInput label="Title" value={financingScenario.costs.title} onChange={v => handleCostChange('title', v)} type="currency" />
-                            <FloatingLabelInput label="Inspection" value={financingScenario.costs.inspection} onChange={v => handleCostChange('inspection', v)} type="currency" />
-                            <FloatingLabelInput label="Appraisal" value={financingScenario.costs.appraisal} onChange={v => handleCostChange('appraisal', v)} type="currency" />
-                        </div>
-                    </div>
-                </SectionCard>
-
-            </div>
-
-            {/* Bottom Analysis Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                
-                {/* Sources & Uses / Capital Stack */}
-                <div className="lg:col-span-8">
-                    <SectionCard title="Sources & Uses Analysis" className="h-full">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center h-full">
-                            <div className="space-y-4 text-sm">
-                                <div className="flex justify-between py-2 border-b border-border-subtle">
-                                    <span className="text-secondary">Purchase Price</span>
-                                    <span className="font-medium text-primary">{fmt(currentPortfolio.valuation?.askingPrice)}</span>
-                                </div>
-                                <div className="flex justify-between py-2 border-b border-border-subtle bg-blue-50/50 px-2 -mx-2 rounded">
-                                    <span className="text-blue-800 flex items-center gap-2">
-                                        <Hammer className="w-3 h-3" /> Renovation CapEx
-                                    </span>
-                                    <span className="font-medium text-blue-900">{fmt(loanCalcs?.renovationCapEx)}</span>
-                                </div>
-                                <div className="flex justify-between py-2 border-b border-border-subtle">
-                                    <span className="text-secondary">Closing Costs</span>
-                                    <span className="font-medium text-primary">{fmt(loanCalcs?.totalClosingCosts)}</span>
-                                </div>
-                                <div className="flex justify-between py-2 text-primary font-bold bg-surface-subtle px-2 -mx-2 rounded">
-                                    <span>Total Project Cost</span>
-                                    <span>{fmt(loanCalcs?.totalCost)}</span>
-                                </div>
-                            </div>
-                            <div className="bg-surface-subtle p-6 rounded-xl border border-border">
-                                <CapitalStackBar 
-                                    equity={loanCalcs?.equityRequired || 0} 
-                                    debt={loanCalcs?.effectiveLoanAmount || 0} 
-                                    total={loanCalcs?.totalCost || 0} 
-                                />
-                                <div className="mt-6 grid grid-cols-2 gap-4">
-                                    <div className="text-center">
-                                        <div className="text-xs text-secondary uppercase tracking-wider">Loan-to-Cost</div>
-                                        <div className="text-xl font-bold text-primary">{fmtPct(loanCalcs?.loanToCost)}</div>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="text-xs text-secondary uppercase tracking-wider">Levered Yield</div>
-                                        <div className="text-xl font-bold text-success">{fmtPct(loanCalcs?.cashOnCashReturn)}</div>
-                                    </div>
+                                <div>
+                                    <div className="text-xs text-secondary uppercase">Stabilized Cap</div>
+                                    <div className="text-lg font-bold text-success">{fmtPct(currentPortfolio.stabilized?.capRate)}</div>
                                 </div>
                             </div>
                         </div>
                     </SectionCard>
+
+                    {/* 2. Loan Structure Square */}
+                    <SectionCard title="2. Loan Structure" className="bg-white h-full border-t-4 border-t-accent">
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="col-span-2">
+                                    <div className="bg-white p-2 rounded-lg border border-border mb-2">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-xs font-medium text-secondary">Target LTV</span>
+                                            <span className="text-sm font-bold text-primary">{financingScenario.targetLTV}%</span>
+                                        </div>
+                                        <input 
+                                            type="range" min={10} max={85} step={1} 
+                                            value={financingScenario.targetLTV} 
+                                            onChange={(e) => handleParamChange('targetLTV', parseFloat(e.target.value))}
+                                            className="w-full h-1.5 bg-border rounded-lg appearance-none cursor-pointer accent-accent"
+                                        />
+                                    </div>
+                                </div>
+                                <FloatingLabelInput label="Interest Rate" value={financingScenario.interestRate} onChange={v => handleParamChange('interestRate', v)} type="percent" step={0.125} />
+                                <FloatingLabelInput label="Amortization" value={financingScenario.amortizationYears} onChange={v => handleParamChange('amortizationYears', v)} type="years" />
+                                <FloatingLabelInput label="Loan Term" value={financingScenario.termYears} onChange={v => handleParamChange('termYears', v)} type="years" />
+                                <FloatingLabelInput label="I/O Period" value={financingScenario.ioPeriodMonths} onChange={v => handleParamChange('ioPeriodMonths', v)} type="months" />
+                                <div className="col-span-2">
+                                    <FloatingLabelInput label="Min DSCR Constraint" value={financingScenario.targetDSCR} onChange={v => handleParamChange('targetDSCR', v)} step={0.05} />
+                                </div>
+                            </div>
+                        </div>
+                    </SectionCard>
+
+                    {/* 3. Closing Costs Square */}
+                    <SectionCard 
+                        title="3. Closing Costs" 
+                        className="bg-white h-full border-t-4 border-t-secondary"
+                        action={<span className="text-xs font-bold text-primary bg-surface-subtle px-2 py-1 rounded border border-border">Total: {fmt(loanCalcs?.totalClosingCosts || 0)}</span>}
+                    >
+                        <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="relative bg-surface-subtle rounded-lg border border-border opacity-80">
+                                    <label className="absolute top-1 left-3 text-[10px] font-semibold text-secondary uppercase">Acquisition Fee (1%)</label>
+                                    <div className="flex items-center px-3 pt-4 pb-1 text-sm font-bold text-primary cursor-default">
+                                        {fmt(loanCalcs?.autoAcquisitionFee || 0)}
+                                    </div>
+                                </div>
+                                <div className="relative bg-surface-subtle rounded-lg border border-border opacity-80">
+                                    <label className="absolute top-1 left-3 text-[10px] font-semibold text-secondary uppercase">Reserves (6mo Debt)</label>
+                                    <div className="flex items-center px-3 pt-4 pb-1 text-sm font-bold text-primary cursor-default">
+                                        {fmt(loanCalcs?.autoReserves || 0)}
+                                    </div>
+                                </div>
+                                
+                                {/* Origination with calculated display */}
+                                <div className="relative bg-white rounded-lg border border-border transition-all focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
+                                    <label className="absolute top-1 left-3 text-[10px] font-semibold text-secondary uppercase">Origination %</label>
+                                    <div className="flex items-center justify-between px-3 pt-4 pb-1">
+                                        <div className="flex items-center w-20">
+                                            <input 
+                                                type="number" 
+                                                step={0.1}
+                                                value={financingScenario.costs.origination}
+                                                onChange={e => handleCostChange('origination', parseFloat(e.target.value) || 0)}
+                                                className="w-full bg-transparent border-none p-0 text-sm font-bold text-primary focus:ring-0 placeholder-muted/50"
+                                            />
+                                            <span className="text-sm text-muted ml-1">%</span>
+                                        </div>
+                                        <span className="text-xs text-muted font-medium border-l border-border pl-2">
+                                            {fmt(loanCalcs?.originationFeeAmount || 0)}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <FloatingLabelInput label="Mortgage Fees" value={financingScenario.costs.mortgageFees} onChange={v => handleCostChange('mortgageFees', v)} type="currency" />
+                                <FloatingLabelInput label="Legal" value={financingScenario.costs.legal} onChange={v => handleCostChange('legal', v)} type="currency" />
+                                <FloatingLabelInput label="Title" value={financingScenario.costs.title} onChange={v => handleCostChange('title', v)} type="currency" />
+                                <FloatingLabelInput label="Inspection" value={financingScenario.costs.inspection} onChange={v => handleCostChange('inspection', v)} type="currency" />
+                                <FloatingLabelInput label="Appraisal" value={financingScenario.costs.appraisal} onChange={v => handleCostChange('appraisal', v)} type="currency" />
+                            </div>
+                        </div>
+                    </SectionCard>
+
                 </div>
 
-                {/* Debt Service & Ratios */}
-                <div className="lg:col-span-4">
-                    <div className="space-y-6 h-full flex flex-col">
-                         <SectionCard title="Debt Service Obligation" className="flex-1">
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="p-3 bg-primary/5 rounded-full text-primary"><Calculator className="w-6 h-6" /></div>
-                                <div>
-                                    <div className="text-2xl font-bold text-primary">{fmt(loanCalcs?.monthlyPAndIPayment)}</div>
-                                    <div className="text-xs text-secondary">Monthly Debt Service</div>
-                                </div>
-                            </div>
-                             {financingScenario.ioPeriodMonths > 0 && (
-                                <div className="flex items-center justify-between p-3 bg-accent/5 border border-accent/10 rounded-lg mb-4">
-                                    <span className="text-sm font-medium text-accent">Interest Only Phase</span>
-                                    <span className="text-sm font-bold text-accent">{fmt(loanCalcs?.monthlyIOPayment)} / mo</span>
-                                </div>
-                            )}
-                            <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-secondary">Annual Debt Service</span>
-                                    <span className="font-medium">{fmt(loanCalcs?.annualDebtService)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-secondary">Balloon Payment (Yr {financingScenario.termYears})</span>
-                                    <span className="font-medium">{fmt(loanCalcs?.balloonPayment)}</span>
-                                </div>
-                            </div>
-                        </SectionCard>
-
-                        <SectionCard title="Coverage Ratios">
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div className="p-4 rounded-lg bg-surface-subtle border border-border text-center">
-                                    <div className={`text-2xl font-bold ${loanCalcs?.dscrStabilized >= 1.25 ? 'text-success' : 'text-warning'}`}>
-                                        {loanCalcs?.dscrStabilized.toFixed(2)}x
+                {/* Bottom Analysis Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    
+                    {/* Sources & Uses / Capital Stack */}
+                    <div className="lg:col-span-8">
+                        <SectionCard title="Sources & Uses Analysis" className="h-full">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center h-full">
+                                <div className="space-y-4 text-sm">
+                                    <div className="flex justify-between py-2 border-b border-border-subtle">
+                                        <span className="text-secondary">Purchase Price</span>
+                                        <span className="font-medium text-primary">{fmt(currentPortfolio.valuation?.askingPrice)}</span>
                                     </div>
-                                    <div className="text-xs text-secondary mt-1">DSCR (Stabilized)</div>
-                                </div>
-                                <div className="p-4 rounded-lg bg-surface-subtle border border-border text-center">
-                                    <div className={`text-2xl font-bold ${loanCalcs?.dscrCurrent >= 1.0 ? 'text-primary' : 'text-danger'}`}>
-                                        {loanCalcs?.dscrCurrent.toFixed(2)}x
+                                    <div className="flex justify-between py-2 border-b border-border-subtle bg-blue-50/50 px-2 -mx-2 rounded">
+                                        <span className="text-blue-800 flex items-center gap-2">
+                                            <Hammer className="w-3 h-3" /> Renovation CapEx
+                                        </span>
+                                        <span className="font-medium text-blue-900">{fmt(loanCalcs?.renovationCapEx)}</span>
                                     </div>
-                                    <div className="text-xs text-secondary mt-1">DSCR (Current)</div>
+                                    <div className="flex justify-between py-2 border-b border-border-subtle">
+                                        <span className="text-secondary">Closing Costs</span>
+                                        <span className="font-medium text-primary">{fmt(loanCalcs?.totalClosingCosts)}</span>
+                                    </div>
+                                    <div className="flex justify-between py-2 text-primary font-bold bg-surface-subtle px-2 -mx-2 rounded">
+                                        <span>Total Project Cost</span>
+                                        <span>{fmt(loanCalcs?.totalCost)}</span>
+                                    </div>
+                                </div>
+                                <div className="bg-surface-subtle p-6 rounded-xl border border-border">
+                                    <CapitalStackBar 
+                                        equity={loanCalcs?.equityRequired || 0} 
+                                        debt={loanCalcs?.effectiveLoanAmount || 0} 
+                                        total={loanCalcs?.totalCost || 0} 
+                                    />
+                                    <div className="mt-6 grid grid-cols-2 gap-4">
+                                        <div className="text-center">
+                                            <div className="text-xs text-secondary uppercase tracking-wider">Loan-to-Cost</div>
+                                            <div className="text-xl font-bold text-primary">{fmtPct(loanCalcs?.loanToCost)}</div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-xs text-secondary uppercase tracking-wider">Levered Yield</div>
+                                            <div className="text-xl font-bold text-success">{fmtPct(loanCalcs?.cashOnCashReturn)}</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </SectionCard>
                     </div>
-                </div>
 
-            </div>
+                    {/* Debt Service & Ratios */}
+                    <div className="lg:col-span-4">
+                        <div className="space-y-6 h-full flex flex-col">
+                            <SectionCard title="Debt Service Obligation" className="flex-1">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className="p-3 bg-primary/5 rounded-full text-primary"><Calculator className="w-6 h-6" /></div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-primary">{fmt(loanCalcs?.monthlyPAndIPayment)}</div>
+                                        <div className="text-xs text-secondary">Monthly Debt Service</div>
+                                    </div>
+                                </div>
+                                {financingScenario.ioPeriodMonths > 0 && (
+                                    <div className="flex items-center justify-between p-3 bg-accent/5 border border-accent/10 rounded-lg mb-4">
+                                        <span className="text-sm font-medium text-accent">Interest Only Phase</span>
+                                        <span className="text-sm font-bold text-accent">{fmt(loanCalcs?.monthlyIOPayment)} / mo</span>
+                                    </div>
+                                )}
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-secondary">Annual Debt Service</span>
+                                        <span className="font-medium">{fmt(loanCalcs?.annualDebtService)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-secondary">Balloon Payment (Yr {financingScenario.termYears})</span>
+                                        <span className="font-medium">{fmt(loanCalcs?.balloonPayment)}</span>
+                                    </div>
+                                </div>
+                            </SectionCard>
+
+                            <SectionCard title="Coverage Ratios">
+                                <div className="grid grid-cols-2 gap-4 mb-4">
+                                    <div className="p-4 rounded-lg bg-surface-subtle border border-border text-center">
+                                        <div className={`text-2xl font-bold ${loanCalcs?.dscrStabilized >= 1.25 ? 'text-success' : 'text-warning'}`}>
+                                            {loanCalcs?.dscrStabilized.toFixed(2)}x
+                                        </div>
+                                        <div className="text-xs text-secondary mt-1">DSCR (Stabilized)</div>
+                                    </div>
+                                    <div className="p-4 rounded-lg bg-surface-subtle border border-border text-center">
+                                        <div className={`text-2xl font-bold ${loanCalcs?.dscrCurrent >= 1.0 ? 'text-primary' : 'text-danger'}`}>
+                                            {loanCalcs?.dscrCurrent.toFixed(2)}x
+                                        </div>
+                                        <div className="text-xs text-secondary mt-1">DSCR (Current)</div>
+                                    </div>
+                                </div>
+                            </SectionCard>
+                        </div>
+                    </div>
+                </div>
+                </>
+            )}
         </div>
     );
 };

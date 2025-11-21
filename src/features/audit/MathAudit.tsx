@@ -3,7 +3,7 @@ import React, { useMemo } from 'react';
 import { useAppStore } from '../../store/appStore';
 import { SectionCard } from '../../components/common/SectionCard';
 import { fmt, fmtPct } from '../../utils/formatters';
-import { runDebtSizingEngine } from '../../utils/loanCalculations';
+import { runDebtSizingEngine, calculateAnnualDebtConstant } from '../../utils/loanCalculations';
 import { calculateInvestorReturns } from '../../utils/investorReturnsCalculations';
 
 const Step: React.FC<{ label: string, value: string | number, formula: string, resultType?: 'currency' | 'percent' | 'number' }> = ({ label, value, formula, resultType = 'number' }) => {
@@ -26,12 +26,14 @@ const MathAudit: React.FC = () => {
         currentPortfolio, 
         assumptions, 
         financingScenario,
-        investorReturnsScenario
+        investorReturnsScenario,
+        refinanceScenario
     } = useAppStore(state => ({
         currentPortfolio: state.currentPortfolio,
         assumptions: state.assumptions,
         financingScenario: state.financingScenario,
-        investorReturnsScenario: state.investorReturnsScenario
+        investorReturnsScenario: state.investorReturnsScenario,
+        refinanceScenario: state.refinanceScenario
     }));
 
     const loanCalcs = useMemo(() => {
@@ -42,7 +44,7 @@ const MathAudit: React.FC = () => {
     const dealReturns = useMemo(() => {
         if (!currentPortfolio || !loanCalcs) return null;
         return calculateInvestorReturns(currentPortfolio, loanCalcs, assumptions, investorReturnsScenario, financingScenario);
-    }, [currentPortfolio, loanCalcs, assumptions, investorReturnsScenario, financingScenario]);
+    }, [currentPortfolio, loanCalcs, assumptions, investorReturnsScenario, financingScenario, refinanceScenario]);
 
     if (!currentPortfolio || !loanCalcs || !dealReturns) return <div>Loading Data...</div>;
 
@@ -50,6 +52,27 @@ const MathAudit: React.FC = () => {
     const price = currentPortfolio.valuation.askingPrice;
     const stabilizedNOI = currentPortfolio.stabilized.noi;
     
+    // Helper for Refi Audit
+    const refiAuditValues = useMemo(() => {
+        if (!refinanceScenario.enabled) return null;
+        const refiYear = Math.ceil(refinanceScenario.refinanceMonth / 12);
+        
+        // Baseline Check
+        const baseGRI = refiYear === 1 ? currentPortfolio.current.gri : currentPortfolio.stabilized.gri;
+        const baseOpEx = refiYear === 1 ? currentPortfolio.current.opex : currentPortfolio.stabilized.opex;
+
+        const rentGrowthRate = (assumptions.rentGrowth || 0) / 100;
+        const opexGrowthRate = (assumptions.opexGrowth || 0) / 100;
+        
+        const projectedGRI = baseGRI * Math.pow(1 + rentGrowthRate, refiYear - 1);
+        const projectedOpEx = baseOpEx * Math.pow(1 + opexGrowthRate, refiYear - 1);
+        const projectedNOI = projectedGRI - projectedOpEx;
+        const projectedValue = projectedNOI / (refinanceScenario.valuationCapRate / 100);
+        const maxLoanLTV = projectedValue * (refinanceScenario.maxLTV / 100);
+        
+        return { refiYear, projectedNOI, projectedValue, maxLoanLTV };
+    }, [refinanceScenario, currentPortfolio, assumptions]);
+
     return (
         <div className="space-y-8 animate-fade-in pb-12">
              <header>
@@ -173,56 +196,70 @@ const MathAudit: React.FC = () => {
                      </div>
                 </SectionCard>
 
-                {/* 4. Investor Returns & Waterfall */}
-                <SectionCard title="5. Returns Waterfall">
+                {/* 4. Refinance Logic */}
+                {refinanceScenario.enabled && refiAuditValues && (
+                    <SectionCard title={`5. Refinance Event (Year ${refiAuditValues.refiYear})`}>
+                        <div className="space-y-4">
+                            <Step 
+                                label="Projected NOI (Refi Year)"
+                                value={refiAuditValues.projectedNOI}
+                                resultType="currency"
+                                formula={`Base NOI × (Growth Rates ^ ${refiAuditValues.refiYear - 1})`}
+                            />
+                            <Step 
+                                label="Projected Valuation"
+                                value={refiAuditValues.projectedValue}
+                                resultType="currency"
+                                formula={`Projected NOI [${fmt(refiAuditValues.projectedNOI)}] / Refi Cap Rate [${fmtPct(refinanceScenario.valuationCapRate)}]`}
+                            />
+                            <Step 
+                                label="New Loan Amount"
+                                value={dealReturns.annual.find(r => r.yearNumber === refiAuditValues.refiYear)?.outstandingBalance || 0}
+                                resultType="currency"
+                                formula={`Min(LTV Check [${fmt(refiAuditValues.maxLoanLTV)}], DSCR Check)`}
+                            />
+                            <Step 
+                                label="Net Proceeds (Cash Out)"
+                                value={dealReturns.annual.find(r => r.yearNumber === refiAuditValues.refiYear)?.refiProceeds || 0}
+                                resultType="currency"
+                                formula={`New Loan - Payoff Balance - Refi Closing Costs`}
+                            />
+                        </div>
+                    </SectionCard>
+                )}
+
+                {/* 5. Investor Returns & Waterfall */}
+                <SectionCard title={`${refinanceScenario.enabled ? '6' : '5'}. Returns Waterfall`}>
                     <div className="space-y-4">
                          <Step 
                             label="Distributable Cash (Operating)"
                             value="Variable"
                             resultType="currency"
-                            formula={`Yearly NOI - Yearly Debt Service (excludes Sale Proceeds)`}
+                            formula={`Yearly NOI - Debt Service + Refi Proceeds (if any).`}
                         />
                         <Step 
-                            label="Step 1: LP Preferred Return"
+                            label="Tier 1: Preferred Return"
                             value={investorReturnsScenario.lpPreferredReturnRate * 100}
                             resultType="percent"
-                            formula={`LP Contribution [${fmt(dealReturns.lp.capitalContribution)}] × Pref Rate`}
+                            formula={`100% of Cash Flow to LP until ${fmtPct(investorReturnsScenario.lpPreferredReturnRate * 100)} return on Unreturned Capital is met.`}
                         />
                          <Step 
-                            label="Step 2: Residual Split"
+                            label="Tier 2: Residual Split"
                             value="Split"
                             resultType="number"
-                            formula={`Remaining Cash × LP (${investorReturnsScenario.lpOwnershipPercent * 100}%) / GP (${investorReturnsScenario.gpOwnershipPercent * 100}%)`}
+                            formula={`Remaining Cash Split Pari Passu: LP (${investorReturnsScenario.lpOwnershipPercent * 100}%) / GP (${investorReturnsScenario.gpOwnershipPercent * 100}%). LP share reduces Unreturned Capital.`}
+                        />
+                        <Step 
+                            label="Return of Capital Logic"
+                            value="Active"
+                            resultType="number"
+                            formula={`LP portion of Tier 2 distributions pays down capital basis. Split remains ${fmtPct(investorReturnsScenario.lpOwnershipPercent * 100)}/${fmtPct(investorReturnsScenario.gpOwnershipPercent * 100)} even after capital is fully returned.`}
                         />
                         <Step 
                             label="Avg. Cash-on-Cash"
                             value={dealReturns.lp.averageCashOnCash * 100}
                             resultType="percent"
-                            formula={`Average of (Annual Operating Distribution / Initial LP Capital). Excludes Sale.`}
-                        />
-                        <Step 
-                            label="Equity Multiple"
-                            value={dealReturns.lp.equityMultiple}
-                            resultType="number"
-                            formula={`Total Distributions (Ops + Sale) / Contribution [${fmt(dealReturns.lp.capitalContribution)}]`}
-                        />
-                    </div>
-                </SectionCard>
-
-                {/* 5. Amortization Logic */}
-                <SectionCard title="6. Amortization & Balance">
-                    <div className="space-y-4">
-                        <Step 
-                            label="Monthly Payment"
-                            value={loanCalcs.monthlyPAndIPayment}
-                            resultType="currency"
-                            formula={`PMT(rate=${(financingScenario.interestRate/12/100).toFixed(4)}, nper=${financingScenario.amortizationYears * 12}, pv=${fmt(loanCalcs.effectiveLoanAmount)})`}
-                        />
-                         <Step 
-                            label="Balloon Payment"
-                            value={loanCalcs.balloonPayment}
-                            resultType="currency"
-                            formula={`Remaining Principal Balance at End of Term (Year ${financingScenario.termYears})`}
+                            formula={`Average of (Annual Operating Distribution / Initial LP Capital). Excludes Sale Proceeds.`}
                         />
                     </div>
                 </SectionCard>

@@ -72,6 +72,7 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
     }));
 
     const [isImageExpanded, setIsImageExpanded] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
 
     const handleReset = () => {
         setPropertyOverrides(property.id, {});
@@ -80,10 +81,51 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            setIsUploading(true);
+            
+            // Create an image object to handle resizing
+            const img = new Image();
             const reader = new FileReader();
-            reader.onloadend = () => {
-                setPropertyOverrides(property.id, { imageUrl: reader.result as string });
+            
+            reader.onload = (event) => {
+                img.src = event.target?.result as string;
             };
+            
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Define max dimensions to keep storage size low
+                const MAX_WIDTH = 1024;
+                const MAX_HEIGHT = 768;
+                let width = img.width;
+                let height = img.height;
+                
+                // Calculate new dimensions maintaining aspect ratio
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    // Compress to JPEG at 70% quality
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    setPropertyOverrides(property.id, { imageUrl: compressedDataUrl });
+                    setIsUploading(false);
+                }
+            };
+            
             reader.readAsDataURL(file);
         }
     };
@@ -131,9 +173,14 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
                                         <img 
                                             src={property.imageUrl} 
                                             alt={property.address}
-                                            className="w-full h-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
+                                            className={`w-full h-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity ${isUploading ? 'opacity-50' : ''}`}
                                             onClick={() => setIsImageExpanded(true)}
                                         />
+                                        {isUploading && (
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            </div>
+                                        )}
                                         {/* Discrete Edit Button */}
                                         <label className="absolute bottom-1 right-1 p-1 bg-black/60 hover:bg-black/80 rounded cursor-pointer z-10 transition-colors" title="Change Image">
                                             <Upload className="w-3 h-3 text-white" />
@@ -142,8 +189,12 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
                                     </>
                                 ) : (
                                     // Placeholder Mode (Click to upload)
-                                    <label className="w-full h-full flex items-center justify-center text-primary/30 hover:bg-surface-subtle/80 hover:text-primary/50 cursor-pointer transition-colors">
-                                        <Building2 className="w-8 h-8" />
+                                    <label className="w-full h-full flex items-center justify-center text-primary/30 hover:bg-surface-subtle/80 hover:text-primary/50 cursor-pointer transition-colors relative">
+                                        {isUploading ? (
+                                            <div className="w-5 h-5 border-2 border-primary/50 border-t-transparent rounded-full animate-spin"></div>
+                                        ) : (
+                                            <Building2 className="w-8 h-8" />
+                                        )}
                                         <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                                         <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/5 transition-colors">
                                             <Upload className="w-4 h-4 opacity-0 hover:opacity-100 text-secondary" />
@@ -339,8 +390,8 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
                                             />
                                         </div>
                                         <div className="p-4 bg-accent/5 border-t border-accent/10 text-center">
-                                            <div className="text-xs text-accent font-bold uppercase tracking-wider mb-1">Value Impact</div>
-                                            <div className="text-xl font-bold text-accent">+{fmt(property.valuation.stabilizedValue - property.valuation.askingPrice)}</div>
+                                             <div className="text-xs text-accent font-bold uppercase tracking-wider mb-1">Value Impact</div>
+                                             <div className="text-xl font-bold text-accent">+{fmt(property.valuation.stabilizedValue - property.valuation.askingPrice)}</div>
                                         </div>
                                     </div>
                                 </div>

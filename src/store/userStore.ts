@@ -10,6 +10,7 @@ interface UserState {
     login: () => Promise<void>;
     logout: () => Promise<void>;
     initAuth: () => void;
+    clearError: () => void;
 }
 
 export const useUserStore = create<UserState>((set) => ({
@@ -19,25 +20,48 @@ export const useUserStore = create<UserState>((set) => ({
 
     initAuth: () => {
         if (!auth) {
-            set({ loading: false });
+            console.warn("Auth not initialized in userStore");
+            set({ loading: false, error: "Firebase not connected" });
             return;
         }
-        onAuthStateChanged(auth, (user) => {
-            set({ user, loading: false });
-        });
+        try {
+            onAuthStateChanged(auth, (user) => {
+                set({ user, loading: false, error: null });
+            }, (error) => {
+                console.error("Auth state change error:", error);
+                set({ loading: false, error: error.message });
+            });
+        } catch (err: any) {
+             set({ loading: false, error: err.message });
+        }
     },
 
     login: async () => {
         if (!auth || !googleProvider) {
-            set({ error: "Firebase configuration is missing. Please update src/config/firebase.ts" });
+            set({ error: "Firebase configuration is missing or blocked. Check console." });
             return;
         }
         try {
             set({ loading: true, error: null });
             await signInWithPopup(auth, googleProvider);
-            // State update handled by onAuthStateChanged
+            // State update handled by onAuthStateChanged listener
         } catch (error: any) {
-            set({ error: error.message, loading: false });
+            console.error("Login error:", error);
+            let message = error.message || "Failed to sign in";
+            
+            // Map common configuration errors to helpful messages
+            if (error.code === 'auth/configuration-not-found') {
+                message = "Auth not enabled. Go to Firebase Console > Authentication and click 'Get Started'.";
+            } else if (error.code === 'auth/operation-not-allowed') {
+                message = "Google Sign-In disabled. Enable it in Firebase Console > Authentication > Sign-in method.";
+            } else if (error.code === 'auth/popup-closed-by-user') {
+                message = "Sign-in cancelled.";
+            } else if (error.code === 'auth/unauthorized-domain') {
+                const domain = window.location.hostname;
+                message = `Domain (${domain}) is not authorized. Add it in Firebase Console > Authentication > Settings > Authorized Domains.`;
+            }
+
+            set({ error: message, loading: false });
         }
     },
 
@@ -45,11 +69,13 @@ export const useUserStore = create<UserState>((set) => ({
         if (!auth) return;
         try {
             await signOut(auth);
-            set({ user: null });
+            set({ user: null, error: null });
         } catch (error: any) {
             set({ error: error.message });
         }
-    }
+    },
+
+    clearError: () => set({ error: null })
 }));
 
 // Initialize listener immediately

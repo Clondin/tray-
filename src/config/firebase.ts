@@ -1,7 +1,8 @@
 
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getAnalytics } from 'firebase/analytics';
 
 // ------------------------------------------------------------------
 // FIREBASE CONFIGURATION
@@ -24,14 +25,28 @@ let app;
 let auth;
 let db;
 let googleProvider;
+let analytics;
 
 try {
-    app = initializeApp(firebaseConfig);
+    // Check if firebase app is already initialized to avoid "Duplicate App" errors in hot-reload
+    if (getApps().length === 0) {
+        app = initializeApp(firebaseConfig);
+    } else {
+        app = getApp();
+    }
+
     auth = getAuth(app);
     db = getFirestore(app);
     googleProvider = new GoogleAuthProvider();
+    
+    // Initialize Analytics if supported
+    if (typeof window !== 'undefined') {
+        analytics = getAnalytics(app);
+    }
+    
+    console.log("Firebase initialized successfully");
 } catch (e) {
     console.error("Error initializing Firebase:", e);
 }
 
-export { auth, db, googleProvider };
+export { auth, db, googleProvider, analytics };

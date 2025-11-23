@@ -3,7 +3,7 @@ import React from 'react';
 import type { View } from '../../types';
 import { useAppStore } from '../../store/appStore';
 import { useUserStore } from '../../store/userStore';
-import { Building2, Layers, Calculator, ClipboardCheck, User, DollarSign, Save } from '../icons';
+import { Building2, Layers, Calculator, ClipboardCheck, User, DollarSign, Save, AlertTriangle, X } from '../icons';
 
 export const TopBar: React.FC = () => {
   const { view, setView, setSnapshotModalOpen } = useAppStore(state => ({ 
@@ -12,10 +12,13 @@ export const TopBar: React.FC = () => {
     setSnapshotModalOpen: state.setSnapshotModalOpen
   }));
 
-  const { user, login, logout } = useUserStore(state => ({
+  const { user, login, logout, error, loading, clearError } = useUserStore(state => ({
       user: state.user,
       login: state.login,
-      logout: state.logout
+      logout: state.logout,
+      error: state.error,
+      loading: state.loading,
+      clearError: state.clearError
   }));
 
   const navItems = [
@@ -101,12 +104,31 @@ export const TopBar: React.FC = () => {
                      </div>
                  </div>
              ) : (
-                 <button 
-                    onClick={login}
-                    className="text-sm font-semibold text-secondary hover:text-primary transition-colors"
-                 >
-                     Sign In
-                 </button>
+                 <div className="flex items-center gap-2 relative">
+                     {error && (
+                         <div className="absolute top-full right-0 mt-2 w-72 p-3 bg-white border-2 border-danger/20 text-danger text-xs rounded-xl shadow-xl z-50 animate-fade-in">
+                             <div className="flex justify-between items-start gap-2">
+                                <div className="flex gap-2">
+                                    <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                    <span className="font-medium leading-relaxed">{error}</span>
+                                </div>
+                                <button onClick={clearError} className="text-danger/50 hover:text-danger">
+                                    <X className="w-3 h-3" />
+                                </button>
+                             </div>
+                         </div>
+                     )}
+                     <button 
+                        onClick={login}
+                        disabled={loading}
+                        className={`
+                            text-sm font-semibold transition-colors px-3 py-1.5 rounded-lg
+                            ${error ? 'bg-danger-light text-danger hover:bg-danger/20' : 'text-secondary hover:text-primary hover:bg-surface-subtle'}
+                        `}
+                     >
+                         {loading ? '...' : error ? 'Retry Sign In' : 'Sign In'}
+                     </button>
+                 </div>
              )}
           </div>
         </div>

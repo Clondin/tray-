@@ -58,11 +58,13 @@ type ReturnTab = 'lp' | 'gp' | 'individual';
 const InvestorReturns: React.FC = () => {
     const {
         currentPortfolio,
+        calculatedProperties,
         financingScenario,
         assumptions,
         investorReturnsScenario,
     } = useAppStore(state => ({
         currentPortfolio: state.currentPortfolio,
+        calculatedProperties: state.calculatedProperties,
         financingScenario: state.financingScenario,
         assumptions: state.assumptions,
         investorReturnsScenario: state.investorReturnsScenario,
@@ -78,8 +80,8 @@ const InvestorReturns: React.FC = () => {
 
     const dealReturns = useMemo(() => {
         if (!currentPortfolio || !loanCalcs) return null;
-        return calculateInvestorReturns(currentPortfolio, loanCalcs, assumptions, investorReturnsScenario, financingScenario);
-    }, [currentPortfolio, loanCalcs, assumptions, investorReturnsScenario, financingScenario]);
+        return calculateInvestorReturns(currentPortfolio, calculatedProperties, loanCalcs, assumptions, investorReturnsScenario, financingScenario);
+    }, [currentPortfolio, calculatedProperties, loanCalcs, assumptions, investorReturnsScenario, financingScenario]);
 
     if (!currentPortfolio || !dealReturns) {
         return (

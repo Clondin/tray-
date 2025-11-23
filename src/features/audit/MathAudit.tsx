@@ -24,12 +24,14 @@ const Step: React.FC<{ label: string, value: string | number, formula: string, r
 const MathAudit: React.FC = () => {
     const { 
         currentPortfolio, 
+        calculatedProperties,
         assumptions, 
         financingScenario,
         investorReturnsScenario,
         refinanceScenario
     } = useAppStore(state => ({
         currentPortfolio: state.currentPortfolio,
+        calculatedProperties: state.calculatedProperties,
         assumptions: state.assumptions,
         financingScenario: state.financingScenario,
         investorReturnsScenario: state.investorReturnsScenario,
@@ -43,8 +45,8 @@ const MathAudit: React.FC = () => {
 
     const dealReturns = useMemo(() => {
         if (!currentPortfolio || !loanCalcs) return null;
-        return calculateInvestorReturns(currentPortfolio, loanCalcs, assumptions, investorReturnsScenario, financingScenario);
-    }, [currentPortfolio, loanCalcs, assumptions, investorReturnsScenario, financingScenario, refinanceScenario]);
+        return calculateInvestorReturns(currentPortfolio, calculatedProperties, loanCalcs, assumptions, investorReturnsScenario, financingScenario);
+    }, [currentPortfolio, calculatedProperties, loanCalcs, assumptions, investorReturnsScenario, financingScenario, refinanceScenario]);
 
     if (!currentPortfolio || !loanCalcs || !dealReturns) return <div>Loading Data...</div>;
 
@@ -116,10 +118,10 @@ const MathAudit: React.FC = () => {
                 <SectionCard title="2. Valuation & Exit">
                     <div className="space-y-4">
                         <Step 
-                            label="NOI Growth Projection (Operating Leverage)"
-                            value="Variable"
+                            label="NOI Growth Projection"
+                            value="Asset-Level"
                             resultType="number"
-                            formula={`NOI_Year_N = (GRI × (1 + ${assumptions.rentGrowth}%)^n) - (OpEx × (1 + ${assumptions.opexGrowth}%)^n)`}
+                            formula={`Iterative Loop: Sum(Property_NOI_Year_N) for all properties. Individual properties linearly interpolate to Stabilized NOI based on their specific 'Stabilization Year' (Default Year 2).`}
                         />
                         <Step 
                             label="Stabilized Valuation (Exit Price)"

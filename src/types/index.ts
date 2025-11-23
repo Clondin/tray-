@@ -113,6 +113,7 @@ export interface PropertyOverrides {
     opexPerRoom?: number; // Pro Forma Ratio Override (Legacy Name)
     t12ExpenseRatio?: number; // T12 Override
     capRate?: number; // Exit Cap Rate Override
+    marketRentTargetYear?: number; // Year to reach stabilized rent
     units?: { [unitId: string]: UnitOverride };
     expenses?: Partial<ExpenseDetail>; // Pro Forma Expense Override
     t12Expenses?: Partial<ExpenseDetail>; // T12 Expense Override

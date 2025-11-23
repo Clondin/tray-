@@ -74,9 +74,6 @@ interface AppState {
   loadSnapshot: (snapshotId: string) => void;
   deleteSnapshot: (snapshotId: string) => void;
   importSnapshot: (snapshot: DealSnapshot) => void;
-  
-  // Sync Action
-  setFullState: (state: Partial<AppState>) => void;
 }
 
 // Calculate default Price Per Room to hit $15.5MM Total Price
@@ -505,19 +502,6 @@ export const useAppStore = create<AppState>()(
                 const safeSnapshot = { ...snapshot, id: `snap-imported-${Date.now()}` };
                 const updatedSnapshots = [...state.savedSnapshots, safeSnapshot];
                 set({ savedSnapshots: updatedSnapshots });
-            },
-            
-            // Sync Logic - Bulk Update
-            setFullState: (partialState) => {
-                const state = get();
-                // We only want to update data fields, not UI state like 'view' or 'modalOpen' unless necessary
-                const updatedState = {
-                    ...state,
-                    ...partialState
-                };
-                // Recalculate derived values
-                const derived = calculateDerivedState(updatedState);
-                set({ ...updatedState, ...derived });
             }
         }),
         {

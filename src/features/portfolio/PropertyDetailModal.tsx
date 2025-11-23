@@ -388,6 +388,18 @@ const PropertyDetailModal: React.FC<{ property: CalculatedProperty, onClose: () 
                                                 type="percent"
                                                 active
                                             />
+
+                                            <EditableField 
+                                                label="Stabilization Year" 
+                                                value={propertyOverrides.marketRentTargetYear ?? 2} 
+                                                onChange={val => setPropertyOverrides(property.id, { marketRentTargetYear: Math.max(1, Math.min(10, val)) })} 
+                                                placeholder={2} 
+                                                type="number"
+                                                active
+                                            />
+                                            <div className="text-xs text-muted -mt-4 leading-tight">
+                                                Expected year to achieve target market rents and occupancy. (Default: Year 2)
+                                            </div>
                                         </div>
                                         <div className="p-4 bg-accent/5 border-t border-accent/10 text-center">
                                              <div className="text-xs text-accent font-bold uppercase tracking-wider mb-1">Value Impact</div>

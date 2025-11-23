@@ -1,5 +1,5 @@
 
-import type { Assumptions, FinancingScenario, InvestorReturnsScenario } from '../types';
+import type { Assumptions, FinancingScenario, InvestorReturnsScenario, CalculatedProperty, PropertyOverrides } from '../types';
 import { useAppStore } from '../store/appStore';
 import { calculateAnnualDebtConstant } from './loanCalculations';
 
@@ -143,14 +143,15 @@ function runWaterfall(
 }
 
 export function calculateInvestorReturns(
-  portfolio: any, // Typed as 'any' to avoid deep dependency issues with Portfolio type in utils
+  portfolio: any,
+  calculatedProperties: CalculatedProperty[],
   loanCalcs: any,
   assumptions: Assumptions,
   investorReturnsScenario: InvestorReturnsScenario,
   financingScenario: FinancingScenario
 ): DealReturns | null {
 
-    const refinanceScenario = useAppStore.getState().refinanceScenario;
+    const { refinanceScenario, propertyOverrides } = useAppStore.getState();
 
     if (!portfolio || !loanCalcs) return null;
 
@@ -214,24 +215,57 @@ export function calculateInvestorReturns(
     let unreturnedCapital = lpCapitalContribution;
     let accruedPref = 0;
 
-    const currentGRI = portfolio.current?.gri || 0;
-    const currentOpEx = portfolio.current?.opex || 0;
-    const stabilizedGRI = portfolio.stabilized?.gri || 0;
-    const stabilizedOpEx = portfolio.stabilized?.opex || 0;
+    // Identify which properties are in the current portfolio selection
+    const activeProperties = calculatedProperties.filter(p => portfolio.propertyIds.includes(p.id));
 
     for (let year = 1; year <= termYears; year++) {
-        // 1. Operating Cash Flow
-        let baseGRI, baseOpEx;
-        if (year === 1) {
-            baseGRI = currentGRI;
-            baseOpEx = currentOpEx;
-        } else {
-            baseGRI = stabilizedGRI;
-            baseOpEx = stabilizedOpEx;
-        }
+        
+        // 1. Operating Cash Flow (Calculated via Asset-Level Iteration)
+        let yearGRI = 0;
+        let yearOpEx = 0;
 
-        const yearGRI = baseGRI * Math.pow(1 + rentGrowthRate, year - 1);
-        const yearOpEx = baseOpEx * Math.pow(1 + opexGrowthRate, year - 1);
+        // Apply Growth Rates
+        const rentGrowthFactor = Math.pow(1 + rentGrowthRate, year - 1);
+        const opexGrowthFactor = Math.pow(1 + opexGrowthRate, year - 1);
+
+        activeProperties.forEach(prop => {
+            // Get property-specific target year or default to 2
+            const targetYear = propertyOverrides[prop.id]?.marketRentTargetYear || 2;
+            
+            let propGRI = 0;
+            let propOpEx = 0;
+
+            // Interpolation Logic:
+            // If targetYear = 1: Immediate stabilization.
+            // If targetYear = 2 (default): Year 1 Current, Year 2 Stabilized.
+            // If targetYear > 2: Linear step-up from Current to Stabilized between Year 1 and Target Year.
+            
+            if (year >= targetYear) {
+                // Fully Stabilized phase
+                propGRI = prop.stabilized.gri;
+                propOpEx = prop.stabilized.opex;
+            } else if (year === 1) {
+                // Current phase
+                propGRI = prop.current.gri;
+                propOpEx = prop.current.opex;
+            } else {
+                // Interpolation phase (Year > 1 but < Target)
+                // Progress 0 at Year 1, 1 at Target Year.
+                // For Year y: (y - 1) / (targetYear - 1)
+                const progress = (year - 1) / (targetYear - 1);
+                
+                const griGap = prop.stabilized.gri - prop.current.gri;
+                const opexGap = prop.stabilized.opex - prop.current.opex;
+
+                propGRI = prop.current.gri + (griGap * progress);
+                propOpEx = prop.current.opex + (opexGap * progress);
+            }
+
+            // Add Inflation
+            yearGRI += (propGRI * rentGrowthFactor);
+            yearOpEx += (propOpEx * opexGrowthFactor);
+        });
+
         const yearNOI = yearGRI - yearOpEx;
 
         // --- Debt Service Logic ---

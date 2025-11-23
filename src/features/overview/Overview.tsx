@@ -162,8 +162,9 @@ const GlobalAssumptionsModal: React.FC<{ isOpen: boolean; onClose: () => void }>
 
 
 const Overview: React.FC = () => {
-  const { currentPortfolio, portfolios, selectedPortfolioId, setSelectedPortfolioId, visibleKPIs, financingScenario, assumptions, investorReturnsScenario } = useAppStore(state => ({
+  const { currentPortfolio, calculatedProperties, portfolios, selectedPortfolioId, setSelectedPortfolioId, visibleKPIs, financingScenario, assumptions, investorReturnsScenario } = useAppStore(state => ({
     currentPortfolio: state.currentPortfolio,
+    calculatedProperties: state.calculatedProperties,
     portfolios: state.portfolios,
     selectedPortfolioId: state.selectedPortfolioId,
     setSelectedPortfolioId: state.setSelectedPortfolioId,
@@ -181,9 +182,9 @@ const Overview: React.FC = () => {
     if (!currentPortfolio) return null;
     const loanCalcs = runDebtSizingEngine(financingScenario, currentPortfolio);
     if (!loanCalcs) return null;
-    const returns = calculateInvestorReturns(currentPortfolio, loanCalcs, assumptions, investorReturnsScenario, financingScenario);
+    const returns = calculateInvestorReturns(currentPortfolio, calculatedProperties, loanCalcs, assumptions, investorReturnsScenario, financingScenario);
     return returns ? returns.lp : null;
-  }, [currentPortfolio, financingScenario, assumptions, investorReturnsScenario]);
+  }, [currentPortfolio, calculatedProperties, financingScenario, assumptions, investorReturnsScenario]);
 
   // Generate and download executive summary
   const handleDownloadSummary = () => {

@@ -1,11 +1,9 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import type { View } from '../../types';
 import { useAppStore } from '../../store/appStore';
 import { useUserStore } from '../../store/userStore';
-import { useLiveSync } from '../../hooks/useLiveSync';
-import { CollaborationModal } from '../../features/collaboration/CollaborationModal';
-import { Building2, Layers, Calculator, ClipboardCheck, User, DollarSign, Save, AlertTriangle, X, Check } from '../icons';
+import { Building2, Layers, Calculator, ClipboardCheck, User, DollarSign, Save, AlertTriangle, X } from '../icons';
 
 export const TopBar: React.FC = () => {
   const { view, setView, setSnapshotModalOpen } = useAppStore(state => ({ 
@@ -23,10 +21,6 @@ export const TopBar: React.FC = () => {
       clearError: state.clearError
   }));
 
-  // Integrate Collaboration Hook
-  const { sessionId, isConnected, startSession, joinSession, leaveSession, statusMessage } = useLiveSync();
-  const [isCollabModalOpen, setIsCollabModalOpen] = useState(false);
-
   const navItems = [
     { id: 'overview', label: 'Dashboard', icon: Layers },
     { id: 'portfolio', label: 'Portfolio', icon: Building2 },
@@ -37,7 +31,6 @@ export const TopBar: React.FC = () => {
   ];
 
   return (
-    <>
     <header className="sticky top-4 z-30 px-4 sm:px-6 lg:px-8 mb-4">
       <div className="max-w-[1600px] mx-auto">
         <div className="glass-panel rounded-2xl px-4 h-16 flex items-center justify-between">
@@ -78,18 +71,6 @@ export const TopBar: React.FC = () => {
 
           {/* Right Actions */}
           <div className="flex items-center gap-3 pr-2">
-             {/* Live Sync Button */}
-             <button 
-                onClick={() => setIsCollabModalOpen(true)}
-                className={`
-                    flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors shadow-sm text-xs font-bold uppercase tracking-wide
-                    ${isConnected ? 'bg-success text-white animate-pulse' : 'bg-white border border-border text-secondary hover:text-primary'}
-                `}
-             >
-                 {isConnected ? <Check className="w-3 h-3" /> : <Layers className="w-3 h-3" />}
-                 {isConnected ? 'Live' : 'Collaborate'}
-             </button>
-
              <button 
                 onClick={() => setSnapshotModalOpen(true)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors shadow-sm text-xs font-bold uppercase tracking-wide"
@@ -153,17 +134,5 @@ export const TopBar: React.FC = () => {
         </div>
       </div>
     </header>
-
-    <CollaborationModal 
-        isOpen={isCollabModalOpen}
-        onClose={() => setIsCollabModalOpen(false)}
-        startSession={startSession}
-        joinSession={joinSession}
-        leaveSession={leaveSession}
-        sessionId={sessionId}
-        isConnected={isConnected}
-        statusMessage={statusMessage}
-    />
-    </>
   );
 };
